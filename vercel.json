@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/syb-fr8x",
+      "dest": "/syb-fr8x.html"
+    },
+    {
+      "src": "/",
+      "dest": "/freight_erp_full.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}
