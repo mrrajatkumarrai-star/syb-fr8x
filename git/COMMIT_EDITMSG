@@ -1,0 +1,9 @@
+feat(accounting): Rename 'Expenses' to 'Expense & Receipt' and integrate opening balance / non-invoice inflow receipts
+
+- Renamed sidebar navigation item and permissions label to 'Expense & Receipt' / 'Expenses & Receipts'.
+- Added transaction type dropdown ('Expense' vs 'Receipt') in the transaction input modal.
+- Substituted vendor dropdown with a list autocomplete combobox for payee/source (removing the constraint to choose preselected vendors).
+- Visualized outflows as red/negative and inflows as green/positive in summaries, reports, and lists.
+- Added default charge heads ('Opening Balance', 'Other Income / Receipt') on startup.
+- Refactored Trial Balance and Balance Sheet to balance accurately with the new inflows.
+- Added new general ledger accounts ('Opening Balance Equity', 'Other Income / Receipts') and audited transactions in reports.

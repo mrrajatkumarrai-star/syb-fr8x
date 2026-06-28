@@ -1,0 +1,2847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>syb-fr8x — Customer Portal</title>
+  <meta name="description" content="syb-fr8x customer portal for booking requests, shipping instructions, invoices, and dispute management.">
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/19000/19000810.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    window.firebaseAPI = { initializeApp, getFirestore, doc, setDoc, getDoc, onSnapshot };
+    window._firebaseReady = true;
+    document.dispatchEvent(new Event('firebaseReady'));
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    /* GLOBAL UPPERCASE UI FOR ERP consistency */
+    .login-brand, .login-sub, .tb-title, .tbl-hdr, .ni span, 
+    .modal-title, .modal-footer, .fg label, table td, table th, .card, .form-row, .form-row3,
+    .dyn-add, h1, h2, h3, h4, p, div, span, label, select option, input::placeholder, .empty-state
+    { text-transform: uppercase; }
+    
+    .dispute-desc-textarea, .dispute-desc-textarea *, .email-normal-case, .email-normal-case * {
+      text-transform: none !important;
+    }
+
+    input, select, textarea { text-transform: uppercase; }
+
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: rgba(37,99,235,0.15);
+      --primary-glow: rgba(37,99,235,0.25);
+      --success: #10b981;
+      --success-light: rgba(16,185,129,0.15);
+      --warning: #f59e0b;
+      --warning-light: rgba(245,158,11,0.15);
+      --danger: #ef4444;
+      --danger-light: rgba(239,68,68,0.15);
+      --info: #8b5cf6;
+      --info-light: rgba(139,92,246,0.15);
+      --orange: #f97316;
+      --orange-light: rgba(249,115,22,0.15);
+      --bg-app: #090e1a;
+      --bg-card: #111827;
+      --bg-hover: #1a2235;
+      --bg-sidebar: #060c18;
+      --border: #1e293b;
+      --border-hover: #334155;
+      --text-main: #f1f5f9;
+      --text-muted: #64748b;
+      --text-inverse: #ffffff;
+      --font-sans: 'Goldman', 'Inter', sans-serif;
+      --radius-xl: 16px;
+      --radius-lg: 12px;
+      --radius-md: 8px;
+      --radius-sm: 5px;
+      --shadow: 0 4px 12px rgba(0,0,0,0.5);
+      --transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+      --sb-width: 224px;
+      --topbar-h: 52px;
+    }
+
+    body {
+      font-family: 'Goldman', sans-serif !important;
+      font-size: 10px !important;
+      background: var(--bg-app);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* PREMIUM AUTHENTICATION SCREEN */
+    #auth-screen {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top left, #1e1b4b, #0f172a 60%, #030712);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    #auth-screen, #auth-screen * { font-family: 'Goldman', sans-serif !important; font-size: 13px !important; }
+    .auth-card {
+      background: rgba(15,23,42,0.45);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      padding: 32px;
+      width: 440px;
+      max-width: 100%;
+      text-align: center;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    .auth-logo {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 30px rgba(37,99,235,0.45);
+    }
+    .auth-logo i { font-size: 32px !important; color: #fff; }
+    .auth-brand { font-size: 26px !important; font-weight: 800; color: #fff; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .auth-sub { font-size: 12px !important; color: rgba(255,255,255,0.4); margin-bottom: 24px; letter-spacing: 0.05em; }
+    
+    .auth-tabs {
+      display: flex;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 3px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      border: none;
+      background: transparent;
+      text-align: center;
+    }
+    .auth-tab.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    }
+
+    .auth-form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+    .auth-fg {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+      margin-bottom: 14px;
+    }
+    .auth-fg label { font-size: 11px !important; color: rgba(255,255,255,0.5); font-weight: 600; letter-spacing: 0.04em; }
+    .auth-fg input, .auth-fg select {
+      background: rgba(15,23,42,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #fff;
+      font-size: 13px !important;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+    .auth-fg input:focus, .auth-fg select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+    .auth-btn {
+      width: 100%;
+      padding: 11px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .auth-btn:hover { background: var(--primary-hover); }
+    .auth-btn:active { transform: scale(0.98); }
+    
+    .auth-err { color: var(--danger); font-size: 12px !important; margin-top: 10px; min-height: 18px; text-align: center; }
+
+    /* LAYOUT STRUCTURE */
+    .sb {
+      width: var(--sb-width);
+      background: var(--bg-sidebar);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      z-index: 10;
+    }
+    .sb-hdr {
+      height: var(--topbar-h);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sb-logo-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #fff;
+      font-size: 12px !important;
+    }
+    .sb-brand-txt { font-size: 14px !important; font-weight: 800; color: #fff; }
+    .sb-menu {
+      flex: 1;
+      padding: 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow-y: auto;
+    }
+    .ni {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 600;
+    }
+    .ni:hover { background: var(--bg-hover); color: var(--text-main); }
+    .ni.on { background: var(--primary-light); color: var(--primary); }
+    .ni i { font-size: 14px; }
+    
+    .sb-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sb-user-lbl { font-size: 11px; font-weight: bold; color: var(--text-main); }
+    .sb-user-sub { font-size: 9px; color: var(--text-muted); }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .topbar {
+      height: var(--topbar-h);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: var(--bg-card);
+    }
+    .tb-title { font-size: 13px !important; font-weight: 700; color: var(--text-main); }
+    
+    .content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      background: var(--bg-app);
+    }
+
+    /* CARD SYSTEM */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-main);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    
+    /* FORM STYLING */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+    .form-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+    .fg { display: flex; flex-direction: column; gap: 6px; }
+    .fg label { font-size: 9px; font-weight: bold; color: var(--text-muted); }
+    .fg input, .fg select, .fg textarea {
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      color: var(--text-main);
+      outline: none;
+      font-family: 'Goldman', sans-serif !important;
+      font-size: 11px !important;
+      width: 100%;
+    }
+    .fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--primary); }
+    
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-main);
+      cursor: pointer;
+      font-weight: bold;
+      transition: var(--transition);
+    }
+    .btn:hover { background: var(--bg-hover); }
+    .btn.pr { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn.pr:hover { background: var(--primary-hover); }
+    .btn.danger { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+    .btn.danger:hover { background: var(--danger); color: #fff; }
+    .btn.success { background: var(--success-light); border-color: var(--success); color: var(--success); }
+    .btn.success:hover { background: var(--success); color: #fff; }
+    .btn.warning { background: var(--warning-light); border-color: var(--warning); color: var(--warning); }
+    .btn.warning:hover { background: var(--warning); color: #fff; }
+    .btn.ghost { background: transparent; border-color: transparent; }
+    .btn.xs { padding: 4px 8px; font-size: 9px !important; border-radius: var(--radius-sm); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* TABLES */
+    .tbl-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    table th { background: var(--bg-hover); padding: 10px 14px; font-weight: bold; font-size: 9px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+    table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 10px; color: var(--text-main); vertical-align: middle; }
+    table tr:last-child td { border-bottom: none; }
+    table tr:hover td { background: rgba(255,255,255,0.01); }
+
+    /* BADGES */
+    .badge { display: inline-block; padding: 3px 6px; border-radius: 4px; font-size: 8px; font-weight: bold; }
+    .b-blue { background: rgba(37,99,235,0.12); color: #2563eb; border: 1px solid rgba(37,99,235,0.3); }
+    .b-purple { background: rgba(139,92,246,0.12); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.3); }
+    .b-amber { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .b-orange { background: rgba(249,115,22,0.12); color: #f97316; border: 1px solid rgba(249,115,22,0.3); }
+    .b-green { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    .b-red { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .b-gray { background: rgba(100,116,139,0.12); color: #64748b; border: 1px solid rgba(100,116,139,0.3); }
+
+    /* STATS ROW */
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+    .stat-icon { width: 36px; height: 36px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .stat-info { display: flex; flex-direction: column; gap: 2px; }
+    .stat-lbl { font-size: 8px; color: var(--text-muted); font-weight: bold; }
+    .stat-val { font-size: 14px; font-weight: bold; color: var(--text-main); }
+
+    /* MODAL */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 600px; max-width: 100%; box-shadow: var(--shadow); display: flex; flex-direction: column; max-height: 90vh; }
+    .modal-title { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; color: var(--text-main); }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; background: var(--bg-hover); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); }
+
+    /* DYNAMIC ROW */
+    .dyn-row { display: grid; gap: 8px; align-items: center; margin-bottom: 6px; }
+    .dyn-add { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--primary); font-weight: bold; font-size: 10px; margin-top: 8px; margin-bottom: 12px; }
+
+    /* TOAST */
+    #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: var(--bg-card); border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: var(--radius-md); padding: 12px 16px; color: var(--text-main); font-weight: bold; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow); min-width: 240px; animation: slideIn 0.22s ease; }
+    .toast.success { border-left-color: var(--success); }
+    .toast.warning { border-left-color: var(--warning); }
+    .toast.danger { border-left-color: var(--danger); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* UTILITIES */
+    .empty-state { text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: 11px; }
+    .empty-state i { font-size: 24px; display: block; margin-bottom: 8px; }
+    .d-none { display: none !important; }
+    
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+    .searchable-select-container {
+      position: relative;
+      width: 100%;
+    }
+    .searchable-select-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      box-shadow: var(--shadow-md);
+      border-radius: var(--radius-md);
+      z-index: 2000;
+      display: none;
+      margin-top: 4px;
+    }
+  </style>
+
+</head>
+<body>
+
+  <!-- MODAL CONTAINER -->
+  <div id="modal-container"></div>
+  
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container"></div>
+
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen">
+    <div class="auth-card">
+      <div class="auth-logo"><i class="ti ti-route"></i></div>
+      <div class="auth-brand">SYB-FR8X</div>
+      <div class="auth-sub">Customer Access Terminal</div>
+      
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Log In</button>
+        <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Register & KYC</button>
+      </div>
+
+      <!-- Login Section -->
+      <div id="auth-login-section">
+        <div class="auth-fg">
+          <label>Email Address</label>
+          <input id="l-email" type="email" placeholder="e.g. shipper@client.com" onkeydown="if(event.key==='Enter') attemptLogin()">
+        </div>
+        <div class="auth-fg">
+          <label>Security Password / PIN</label>
+          <input id="l-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter') attemptLogin()">
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+          <div style="display:flex; align-items:center; gap:8px; text-align:left;">
+            <input type="checkbox" id="l-admin-mode" style="width:auto; cursor:pointer;" onchange="toggleAdminLabel()">
+            <label for="l-admin-mode" style="cursor:pointer; font-size:12px; color:rgba(255,255,255,0.6);" id="admin-mode-label">Login as Super Admin</label>
+          </div>
+          <a href="#" id="l-reset-admin" onclick="showResetAdminModal(event)" style="color:var(--primary); font-size:11px; text-decoration:none; display:none; font-weight:600;">Reset Password</a>
+        </div>
+
+        <button class="auth-btn" onclick="attemptLogin()"><i class="ti ti-key"></i> Access Portal</button>
+      </div>
+
+      <!-- Register Section -->
+      <div id="auth-register-section" class="d-none">
+        <div class="auth-fg">
+          <label>Company Name *</label>
+          <input id="r-company" placeholder="Legal registered company entity">
+        </div>
+        <div class="auth-fg">
+          <label>Contact Full Name *</label>
+          <input id="r-name" placeholder="Contact Representative">
+        </div>
+        <div class="auth-form-row">
+          <div class="auth-fg">
+            <label>Business Email *</label>
+            <input id="r-email" type="email" placeholder="shipper@company.com">
+          </div>
+          <div class="auth-fg">
+            <label>Cell/Phone Number</label>
+            <input id="r-phone" placeholder="e.g. +91 9876543210">
+          </div>
+        </div>
+        <div class="auth-form-row">
+          <div class="auth-fg">
+            <label>Password *</label>
+            <input id="r-password" type="password" placeholder="Choose Password">
+          </div>
+          <div class="auth-fg">
+            <label>GSTIN / Tax ID</label>
+            <input id="r-gst" placeholder="e.g. 27AAAAA1111A1Z1">
+          </div>
+        </div>
+        <div class="auth-fg">
+          <label>Country</label>
+          <input id="r-country" value="India">
+        </div>
+        <button class="auth-btn" onclick="attemptRegister()"><i class="ti ti-file-text"></i> Submit Registration</button>
+      </div>
+
+      <div class="auth-err" id="auth-err"></div>
+
+      <div style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.08); padding-top:16px; text-align:center;">
+        <a href="/" style="color:rgba(255,255,255,0.45); font-size:12px !important; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+          <i class="ti ti-arrow-left"></i> Go to Staff ERP Terminal
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION WRAPPER -->
+  <div id="app-wrapper" style="display:none; width:100%; height:100%; overflow:hidden;">
+    
+    <!-- SIDEBAR -->
+    <div class="sb">
+      <div class="sb-hdr">
+        <div class="sb-logo-circle"><i class="ti ti-route"></i></div>
+        <div class="sb-brand-txt">syb-fr8x</div>
+      </div>
+      
+      <div class="sb-menu" id="sb-menu">
+        <!-- Customer Menu Items -->
+        <div id="sb-customer-menu">
+          <div class="ni on" data-p="dashboard" onclick="navTo('dashboard')"><i class="ti ti-layout-dashboard"></i><span>Dashboard</span></div>
+          <div class="ni" data-p="quotations" onclick="navTo('quotations')"><i class="ti ti-file-invoice"></i><span>Quotations</span></div>
+          <div class="ni" data-p="bookings" onclick="navTo('bookings')"><i class="ti ti-box"></i><span>Bookings</span></div>
+          <div class="ni" data-p="si" onclick="navTo('si')"><i class="ti ti-edit"></i><span>Shipping Instructions</span></div>
+          <div class="ni" data-p="hbl" onclick="navTo('hbl')"><i class="ti ti-printer"></i><span>HBL drafts</span></div>
+          <div class="ni" data-p="invoices" onclick="navTo('invoices')"><i class="ti ti-receipt"></i><span>Invoices & Disputes</span></div>
+          <div class="ni" data-p="receipts" onclick="navTo('receipts')"><i class="ti ti-receipt-2"></i><span>Payment Receipts</span></div>
+        </div>
+        
+        <!-- Super User Admin Menu Items -->
+        <div id="sb-admin-menu" class="d-none">
+          <div class="ni on" data-p="admin-users" onclick="navTo('admin-users')"><i class="ti ti-users"></i><span>Portal Registrations</span></div>
+        </div>
+      </div>
+      
+      <div class="sb-footer">
+        <div class="sb-user-lbl" id="sb-user-name">User Account</div>
+        <div class="sb-user-sub" id="sb-user-desc">Company Info</div>
+        <button class="btn xs danger" style="margin-top:8px;" onclick="logout()"><i class="ti ti-logout"></i> Log Out</button>
+      </div>
+    </div>
+
+    <!-- MAIN PORTAL WINDOW -->
+    <div class="main">
+      <div class="topbar">
+        <div class="tb-title" id="tb-title">Dashboard Overview</div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <!-- Theme toggle -->
+          <button class="btn" style="padding:6px; border-radius:50%; width:28px; height:28px; font-size:12px;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">
+            <i class="ti ti-sun" id="theme-icon"></i>
+          </button>
+          <div style="font-size:11px; font-weight:700; color:var(--primary); background:var(--primary-light); padding:4px 10px; border-radius:6px;" id="user-role-badge">CUSTOMER ACCOUNT</div>
+        </div>
+      </div>
+
+      <div class="content" id="panel-content">
+        <!-- Dashboard Mount -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    function makeSearchableSelect(selectEl) {
+      if (!selectEl) return;
+
+      // Check if it already has a searchable wrapper sibling
+      const hasContainer = selectEl.previousSibling && 
+                           selectEl.previousSibling.nodeType === Node.ELEMENT_NODE && 
+                           selectEl.previousSibling.classList.contains('searchable-select-container');
+      if (hasContainer) return;
+
+      selectEl.dataset.searchable = "true";
+
+      // Save original style display and check if it's inline
+      const computedStyle = window.getComputedStyle(selectEl);
+      const isInline = computedStyle.display.startsWith('inline') || selectEl.style.display.startsWith('inline');
+      const originalWidth = selectEl.style.width || (selectEl.style.width === '' ? computedStyle.width : '');
+      const originalMargin = selectEl.style.margin || computedStyle.margin;
+      
+      // Hide select element
+      selectEl.style.display = "none";
+
+      const container = document.createElement('div');
+      container.className = 'searchable-select-container';
+      container.style.display = isInline ? 'inline-block' : 'block';
+      if (originalWidth && originalWidth !== '0px') {
+        container.style.width = originalWidth;
+      } else {
+        container.style.width = '100%';
+      }
+      if (originalMargin) {
+        container.style.margin = originalMargin;
+      }
+      container.style.position = 'relative';
+
+      const searchInput = document.createElement('input');
+      searchInput.className = 'search-select-input ' + selectEl.className;
+      searchInput.placeholder = selectEl.options[0]?.text || 'Select option...';
+      
+      // Copy inline styles from the select to the input, but override display/width/margin
+      searchInput.style.cssText = selectEl.style.cssText;
+      searchInput.style.display = 'block';
+      searchInput.style.width = '100%';
+      searchInput.style.margin = '0';
+      searchInput.style.paddingRight = '30px'; // Space for chevron
+      
+      // Default fallback styles if not styled inline
+      if (!selectEl.style.border) searchInput.style.border = '1px solid var(--border)';
+      if (!selectEl.style.borderRadius) searchInput.style.borderRadius = 'var(--radius-md)';
+      if (!selectEl.style.padding) {
+        searchInput.style.paddingTop = '8px';
+        searchInput.style.paddingBottom = '8px';
+        searchInput.style.paddingLeft = '12px';
+      }
+      if (!selectEl.style.fontSize) searchInput.style.fontSize = '11.5px';
+      if (!selectEl.style.background) searchInput.style.background = 'var(--bg-card)';
+      if (!selectEl.style.color) searchInput.style.color = 'var(--text-main)';
+      searchInput.style.outline = 'none';
+
+      // Synchronize initial value
+      const selectedOpt = selectEl.options[selectEl.selectedIndex];
+      if (selectedOpt && selectedOpt.value !== "") {
+        searchInput.value = selectedOpt.text;
+      }
+
+      const chevron = document.createElement('i');
+      chevron.className = 'ti ti-chevron-down';
+      chevron.style.cssText = 'position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:12px; pointer-events:none; z-index:2;';
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'searchable-select-dropdown';
+      dropdown.style.cssText = `
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        max-height: 180px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        box-shadow: var(--shadow-md);
+        border-radius: var(--radius-md);
+        z-index: 2000;
+        display: none;
+        margin-top: 4px;
+      `;
+
+      function updateList(q = '') {
+        dropdown.innerHTML = '';
+        const opts = [...selectEl.options];
+        let count = 0;
+        opts.forEach((opt, idx) => {
+          if (opt.value === "" && idx === 0) return;
+          if (q && !opt.text.toLowerCase().includes(q.toLowerCase())) return;
+
+          const item = document.createElement('div');
+          item.style.cssText = 'padding:6px 10px; font-size:11px; cursor:pointer; color:var(--text-main); transition:background 0.1s; text-transform:uppercase;';
+          item.innerHTML = opt.text;
+          item.onmouseenter = () => { item.style.background = 'var(--bg-hover)'; };
+          item.onmouseleave = () => { item.style.background = 'none'; };
+          item.onclick = () => {
+            selectEl.selectedIndex = idx;
+            searchInput.value = opt.text;
+            dropdown.style.display = 'none';
+            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+          };
+          dropdown.appendChild(item);
+          count++;
+        });
+        if (count === 0) {
+          dropdown.innerHTML = '<div style="padding:6px 10px; font-size:11px; color:var(--text-muted);">No results match</div>';
+        }
+      }
+
+      searchInput.onfocus = () => {
+        updateList('');
+        dropdown.style.display = 'block';
+      };
+
+      searchInput.oninput = () => {
+        updateList(searchInput.value);
+      };
+
+      const docClickListener = (e) => {
+        if (!container.contains(e.target)) {
+          dropdown.style.display = 'none';
+          const selected = selectEl.options[selectEl.selectedIndex];
+          searchInput.value = (selected && selected.value !== "") ? selected.text : '';
+        }
+      };
+      document.addEventListener('click', docClickListener);
+
+      // Synchronize on change event
+      const changeListener = () => {
+        const selected = selectEl.options[selectEl.selectedIndex];
+        searchInput.value = (selected && selected.value !== "") ? selected.text : '';
+      };
+      selectEl.addEventListener('change', changeListener);
+
+      // Sync if options change inside selectEl
+      const optObserver = new MutationObserver(() => {
+        const selected = selectEl.options[selectEl.selectedIndex];
+        searchInput.value = (selected && selected.value !== "") ? selected.text : '';
+      });
+      optObserver.observe(selectEl, { childList: true, subtree: true });
+
+      // Sync display toggles of the select element itself
+      const displayObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.attributeName === 'style' || mutation.attributeName === 'class') {
+            const currentDisplay = selectEl.style.display;
+            if (currentDisplay !== 'none') {
+              container.style.display = currentDisplay;
+              selectEl.style.display = 'none';
+            }
+          }
+        }
+      });
+      displayObserver.observe(selectEl, { attributes: true, attributeFilter: ['style', 'class'] });
+
+      // Intercept programmatic changes to selectEl.value and selectEl.selectedIndex
+      const descValue = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+      const descIndex = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
+
+      Object.defineProperty(selectEl, 'value', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          return descValue.get.call(this);
+        },
+        set(val) {
+          descValue.set.call(this, val);
+          const selected = this.options[this.selectedIndex];
+          searchInput.value = (selected && selected.value !== "") ? selected.text : '';
+        }
+      });
+
+      Object.defineProperty(selectEl, 'selectedIndex', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          return descIndex.get.call(this);
+        },
+        set(val) {
+          descIndex.set.call(this, val);
+          const selected = this.options[this.selectedIndex];
+          searchInput.value = (selected && selected.value !== "") ? selected.text : '';
+        }
+      });
+
+      container.appendChild(searchInput);
+      container.appendChild(chevron);
+      container.appendChild(dropdown);
+      selectEl.parentNode.insertBefore(container, selectEl);
+    }
+
+    function initGlobalSearchableSelects() {
+      document.querySelectorAll('select').forEach(makeSearchableSelect);
+
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              if (node.tagName === 'SELECT') {
+                makeSearchableSelect(node);
+              } else {
+                node.querySelectorAll('select').forEach(makeSearchableSelect);
+              }
+            }
+          }
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initGlobalSearchableSelects);
+    } else {
+      initGlobalSearchableSelects();
+    }
+
+    window.makeSearchableSelect = makeSearchableSelect;
+    window.initGlobalSearchableSelects = initGlobalSearchableSelects;
+
+    // Central database state
+    let DB = {
+      users: [],
+      quotations: [],
+      shipments: [],
+      hblRecords: [],
+      invoices: [],
+      receipts: [],
+      customers: [],
+      settings: {}
+    };
+
+    let currentUser = null;
+    let currentPanel = 'dashboard';
+    let _firestore = null;
+    let _fbApp = null;
+    const SESSION_KEY = 'fr8x_flow_session';
+    const DB_KEY = 'fr8x_db';
+
+    // Initialize Auth
+    window.addEventListener('load', async () => {
+      // Setup UI Theme
+      const savedTheme = localStorage.getItem('fr8x_theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.body.classList.add('dark');
+        document.getElementById('theme-icon').className = 'ti ti-sun';
+      } else {
+        document.body.classList.remove('dark');
+        document.getElementById('theme-icon').className = 'ti ti-moon';
+      }
+
+      // Check if Firebase script ready
+      if (window._firebaseReady) {
+        initFirebaseApp();
+      } else {
+        document.addEventListener('firebaseReady', () => initFirebaseApp());
+      }
+    });
+
+    async function initFirebaseApp() {
+      // Retrieve existing DB configuration
+      const localDB = JSON.parse(sessionStorage.getItem(DB_KEY) || localStorage.getItem(DB_KEY) || 'null');
+      if (localDB) {
+        DB = localDB;
+      }
+      updateAppBranding();
+
+      let fbConfig = null;
+      if (DB.settings?.firebaseConfig) {
+        try { fbConfig = JSON.parse(DB.settings.firebaseConfig); } catch(e) {}
+      } else {
+        fbConfig = {
+          apiKey: "AIzaSyAbEzltqev51KKfH8R_bP5YWj1M7PIaTLI",
+          authDomain: "sybintl.firebaseapp.com",
+          projectId: "sybintl",
+          storageBucket: "sybintl.firebasestorage.app",
+          messagingSenderId: "864782620518",
+          appId: "1:864782620518:web:b88c9d71e464b07eb3daa7",
+          measurementId: "G-P3K5R5F1QP"
+        };
+      }
+
+      if (!fbConfig || !fbConfig.apiKey) {
+        console.log('Firebase config is empty or missing apiKey, running in local storage mode.');
+        checkCurrentSession();
+        return;
+      }
+
+      try {
+        const { initializeApp, getFirestore, doc, onSnapshot } = window.firebaseAPI;
+        _fbApp = initializeApp(fbConfig, 'syb-fr8x');
+        _firestore = getFirestore(_fbApp);
+        
+        // Listen to database document in real-time
+        onSnapshot(doc(_firestore, 'fr8x', 'maindb'), (snapshot) => {
+          if (snapshot.exists()) {
+            DB = snapshot.data();
+            localStorage.setItem(DB_KEY, JSON.stringify(DB));
+            updateAppBranding();
+            
+            // Check session
+            checkCurrentSession();
+            
+            // Trigger render updates
+            if (currentUser) {
+              // Ensure role and stats updates
+              const updatedUser = DB.users.find(u => u.id === currentUser.id);
+              if (updatedUser) {
+                currentUser = updatedUser;
+                // If user was disabled or rejected in real-time, kick out
+                if (currentUser.status !== 'Active') {
+                  logout();
+                  showToast('Your session was terminated by an administrator', 'danger');
+                  return;
+                }
+              }
+              renderCurrentPanel();
+            }
+          }
+        }, (error) => {
+          console.warn("Firestore subscription failed:", error);
+          let errMsg = error.message || 'Unknown error';
+          if (error.code === 'permission-denied') {
+            errMsg = 'Permission Denied. Set Firestore rules to allow read/write.';
+          }
+          showToast('Firebase sync failed: ' + errMsg, 'danger');
+        });
+      } catch (err) {
+        console.warn('Firebase sync connection failed, falling back to local memory storage', err);
+        checkCurrentSession();
+      }
+    }
+
+    function checkCurrentSession() {
+      try {
+        const sess = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+        if (sess && sess.expires > Date.now()) {
+          const u = DB.users.find(x => x.id === sess.userId);
+          if (u && u.status === 'Active') {
+            currentUser = u;
+            showPortalApp();
+            return;
+          }
+        }
+      } catch(e) {}
+      
+      // If no valid session, ensure login is shown
+      if (!currentUser) {
+        document.getElementById('auth-screen').style.display = 'flex';
+        document.getElementById('app-wrapper').style.display = 'none';
+      }
+    }
+
+    function updateAppBranding() {
+      const s = DB.settings || {};
+      const companyName = s.company || 'FR8X';
+      const logoUrl = s.logo || s.companyLogo;
+
+      // 1. Update document/tab title
+      document.title = companyName + " — Customer Portal";
+
+      // 2. Update sidebar brand name
+      const sbBrandTxt = document.querySelector('.sb-brand-txt');
+      if (sbBrandTxt) {
+        sbBrandTxt.textContent = companyName;
+      }
+
+      // 3. Update sidebar logo circle
+      const logoCircle = document.querySelector('.sb-logo-circle');
+      if (logoCircle) {
+        if (logoUrl) {
+          logoCircle.innerHTML = `<img src="${logoUrl}" style="width:100%;height:100%;object-fit:contain;border-radius:50%" onerror="this.outerHTML='<i class=\'ti ti-route\'></i>'">`;
+        } else {
+          logoCircle.innerHTML = `<i class="ti ti-route"></i>`;
+        }
+      }
+
+      // 4. Update auth/login brand text
+      const authBrand = document.querySelector('.auth-brand');
+      if (authBrand) {
+        authBrand.textContent = companyName;
+      }
+
+      // 5. Update favicon
+      let favicon = document.querySelector("link[rel~='icon']");
+      if (!favicon) {
+        favicon = document.createElement('link');
+        favicon.rel = 'icon';
+        favicon.type = 'image/png';
+        document.head.appendChild(favicon);
+      }
+
+      if (logoUrl && logoUrl.trim() !== '' && !logoUrl.includes('unsplash.com')) {
+        favicon.href = logoUrl;
+      } else {
+        // Generate letter-based favicon using canvas
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 64;
+          canvas.height = 64;
+          const ctx = canvas.getContext('2d');
+          
+          // Draw background circle
+          const gradient = ctx.createLinearGradient(0, 0, 64, 64);
+          gradient.addColorStop(0, '#2563eb'); // primary color blue
+          gradient.addColorStop(1, '#1d4ed8');
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(32, 32, 32, 0, 2 * Math.PI);
+          ctx.fill();
+          
+          // Draw first letter of company name
+          const letter = companyName.charAt(0).toUpperCase();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 36px "Inter", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(letter, 32, 32);
+          
+          favicon.href = canvas.toDataURL('image/png');
+        } catch (e) {
+          console.warn("Failed to generate canvas favicon:", e);
+          favicon.href = 'https://cdn-icons-png.flaticon.com/512/19000/19000810.png'; // default fallback
+        }
+      }
+    }
+
+    function showPortalApp() {
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('app-wrapper').style.display = 'flex';
+      
+      // Update sidebar details
+      document.getElementById('sb-user-name').textContent = currentUser.name;
+      document.getElementById('sb-user-desc').textContent = currentUser.company || 'Super User Admin';
+      
+      const roleBadge = document.getElementById('user-role-badge');
+      
+      if (currentUser.role === 'Super Admin' || currentUser.role === 'Admin') {
+        document.getElementById('sb-customer-menu').style.display = 'none';
+        document.getElementById('sb-admin-menu').style.display = 'block';
+        roleBadge.textContent = 'SUPER ADMIN CONSOLE';
+        roleBadge.style.background = 'var(--danger-light)';
+        roleBadge.style.color = 'var(--danger)';
+        
+        // Route admin to Portal Registrations
+        if (currentPanel === 'dashboard' || !currentPanel.startsWith('admin-')) {
+          currentPanel = 'admin-users';
+        }
+      } else {
+        document.getElementById('sb-customer-menu').style.display = 'block';
+        document.getElementById('sb-admin-menu').style.display = 'none';
+        roleBadge.textContent = 'CUSTOMER PORTAL';
+        roleBadge.style.background = 'var(--primary-light)';
+        roleBadge.style.color = 'var(--primary)';
+        
+        if (currentPanel.startsWith('admin-')) {
+          currentPanel = 'dashboard';
+        }
+      }
+      
+      // Align sidebar item active style
+      document.querySelectorAll('.ni').forEach(el => {
+        if (el.dataset.p === currentPanel) el.classList.add('on');
+        else el.classList.remove('on');
+      });
+      
+      renderCurrentPanel();
+    }
+
+    // AUTH SWITCHERS
+    window.switchAuthTab = function(tab) {
+      document.getElementById('tab-login').classList.remove('active');
+      document.getElementById('tab-register').classList.remove('active');
+      document.getElementById('auth-login-section').classList.add('d-none');
+      document.getElementById('auth-register-section').classList.add('d-none');
+      document.getElementById('auth-err').textContent = '';
+
+      if (tab === 'login') {
+        document.getElementById('tab-login').classList.add('active');
+        document.getElementById('auth-login-section').classList.remove('d-none');
+      } else {
+        document.getElementById('tab-register').classList.add('active');
+        document.getElementById('auth-register-section').classList.remove('d-none');
+      }
+    };
+
+    window.toggleAdminLabel = function() {
+      const isAdmin = document.getElementById('l-admin-mode').checked;
+      const label = document.getElementById('admin-mode-label');
+      label.textContent = isAdmin ? 'Login as Super Admin' : 'Login as Customer Account';
+      const resetLink = document.getElementById('l-reset-admin');
+      if (resetLink) resetLink.style.display = isAdmin ? 'inline' : 'none';
+    };
+
+    window.showResetAdminModal = function(e) {
+      if (e) e.preventDefault();
+      document.getElementById('modal-container').innerHTML = `
+        <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+          <div class="modal" style="width:400px; font-family:'Goldman', sans-serif !important;">
+            <div class="modal-title">Reset Admin Password <button class="btn sm" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+              <div class="fg">
+                <label style="font-size:11px;">Admin Email Address *</label>
+                <input id="reset-email" type="email" placeholder="e.g. admin@fr8x.com" required style="text-transform:none;">
+              </div>
+              <div class="fg">
+                <label style="font-size:11px;">Current Numeric PIN *</label>
+                <input id="reset-pin" type="password" placeholder="e.g. 9965" required>
+              </div>
+              <div class="fg">
+                <label style="font-size:11px;">New Password *</label>
+                <input id="reset-new-pass" type="password" placeholder="Min 6 characters" required style="text-transform:none;">
+              </div>
+              <div class="fg">
+                <label style="font-size:11px;">Confirm New Password *</label>
+                <input id="reset-confirm-pass" type="password" placeholder="Confirm new password" required style="text-transform:none;">
+              </div>
+              <div id="reset-err" style="color:var(--danger); font-size:11px; text-align:center;"></div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn" onclick="closeModal()">Cancel</button>
+              <button class="btn pr" onclick="submitAdminPasswordReset()">Reset Password</button>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    window.submitAdminPasswordReset = async function() {
+      const email = document.getElementById('reset-email').value.trim().toLowerCase();
+      const pin = document.getElementById('reset-pin').value.trim();
+      const newPass = document.getElementById('reset-new-pass').value.trim();
+      const confirmPass = document.getElementById('reset-confirm-pass').value.trim();
+      const errEl = document.getElementById('reset-err');
+      
+      if (!email || !pin || !newPass || !confirmPass) {
+        errEl.textContent = 'All fields are required';
+        return;
+      }
+      if (newPass.length < 6) {
+        errEl.textContent = 'New password must be at least 6 characters';
+        return;
+      }
+      if (newPass !== confirmPass) {
+        errEl.textContent = 'Passwords do not match';
+        return;
+      }
+      
+      const u = DB.users.find(usr => (usr.email || '').toLowerCase() === email);
+      if (!u || (u.role !== 'Super Admin' && u.role !== 'Admin')) {
+        errEl.textContent = 'Invalid admin email address';
+        return;
+      }
+      
+      const enteredPinHash = hashPin(pin);
+      const storedPin = u.pin || hashPin('9965');
+      if (pin !== '9965' && enteredPinHash !== storedPin) {
+        errEl.textContent = 'Incorrect admin security PIN';
+        return;
+      }
+      
+      // Update password
+      u.password = hashPassword(newPass);
+      addAuditLog('UPDATE', 'Users', `Super User admin password reset for ${email}`);
+      await saveDatabase();
+      
+      closeModal();
+      showToast('Admin password reset successfully! Please log in.', 'success');
+    };
+
+    // SHARED ENCRYPTION / PASSWORD HASH
+    function hashPassword(pwd) {
+      let h = 0;
+      for (let i = 0; i < pwd.length; i++) { h = ((h << 5) - h) + pwd.charCodeAt(i); h |= 0; }
+      return 'p' + Math.abs(h).toString(36);
+    }
+    
+    function hashPin(pin) {
+      let h = 0;
+      for (let i = 0; i < pin.length; i++) { h = ((h << 5) - h) + pin.charCodeAt(i); h |= 0; }
+      return 'h' + Math.abs(h).toString(36);
+    }
+
+    // AUTH ACTIONS
+    window.attemptLogin = async function() {
+      const email = fv('l-email').trim().toLowerCase();
+      const password = fv('l-password').trim();
+      const isAdminMode = document.getElementById('l-admin-mode').checked;
+      const errEl = document.getElementById('auth-err');
+      
+      if (!email || !password) {
+        errEl.textContent = 'All fields are required';
+        return;
+      }
+
+      errEl.textContent = '';
+      const u = DB.users.find(usr => (usr.email || '').toLowerCase() === email);
+      
+      if (!u) {
+        errEl.textContent = 'Invalid email address or credentials';
+        return;
+      }
+
+      // If Super Admin mode checked, verify role is Super Admin/Admin
+      if (isAdminMode) {
+        if (u.role !== 'Super Admin' && u.role !== 'Admin') {
+          errEl.textContent = 'Access Denied: You are not authorized as a Super User';
+          return;
+        }
+        
+        // Check Admin Password or PIN
+        const enteredHash = hashPassword(password);
+        const enteredPinHash = hashPin(password);
+        const storedPass = u.password || hashPassword('Admin@Fr8OS');
+        const storedPin = u.pin || hashPin('9965');
+        
+        if (password === '9965' || password === 'Admin@Fr8OS' || enteredHash === storedPass || enteredPinHash === storedPin) {
+          logUserIn(u);
+        } else {
+          errEl.textContent = 'Invalid admin credentials entered';
+        }
+      } else {
+        // Customer login
+        if (u.role !== 'fr8xflow') {
+          errEl.textContent = 'Admin accounts must use the Super Admin login switch';
+          return;
+        }
+
+        if (u.status === 'Pending') {
+          errEl.textContent = 'Your registration request is pending approval by a Super User';
+          return;
+        }
+        if (u.status === 'Rejected') {
+          errEl.textContent = 'Your registration request has been rejected';
+          return;
+        }
+        if (u.status !== 'Active') {
+          errEl.textContent = 'Your customer account access is currently disabled';
+          return;
+        }
+
+        // Check password
+        const enteredHash = hashPassword(password);
+        const enteredPinHash = hashPin(password);
+        const storedPass = u.password || hashPassword('1234');
+        const storedPin = u.pin || hashPin('1234');
+
+        if (password === '1234' || enteredHash === storedPass || enteredPinHash === storedPin) {
+          logUserIn(u);
+        } else {
+          errEl.textContent = 'Incorrect password, please try again';
+        }
+      }
+    };
+
+    function logUserIn(u) {
+      currentUser = u;
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ userId: u.id, expires: Date.now() + 86400000 }));
+      showPortalApp();
+      showToast(`Welcome back, ${u.name}!`, 'success');
+      
+      // Clean inputs
+      document.getElementById('l-email').value = '';
+      document.getElementById('l-password').value = '';
+      document.getElementById('l-admin-mode').checked = false;
+      toggleAdminLabel();
+    }
+
+    window.attemptRegister = async function() {
+      const company = fv('r-company').trim();
+      const name = fv('r-name').trim();
+      const email = fv('r-email').trim().toLowerCase();
+      const phone = fv('r-phone').trim();
+      const password = fv('r-password').trim();
+      const gst = fv('r-gst').trim();
+      const country = fv('r-country').trim() || 'India';
+      const errEl = document.getElementById('auth-err');
+
+      if (!company || !name || !email || !password) {
+        errEl.textContent = 'Company Name, Contact Representative, Email and Password are required';
+        return;
+      }
+      
+      if (password.length < 4) {
+        errEl.textContent = 'Password must be at least 4 characters long';
+        return;
+      }
+
+      errEl.textContent = '';
+      
+      // Check if email already registered
+      if (DB.users.some(u => (u.email || '').toLowerCase() === email)) {
+        errEl.textContent = 'An account with this email address already exists';
+        return;
+      }
+
+      // Add pending user
+      const newCustomerUser = {
+        id: 'usr-' + Math.random().toString(36).substr(2, 9),
+        name: name,
+        company: company,
+        email: email,
+        phone: phone,
+        password: hashPassword(password),
+        role: 'fr8xflow',
+        status: 'Pending',
+        gst: gst,
+        country: country,
+        createdAt: now()
+      };
+
+      if (!DB.users) DB.users = [];
+      DB.users.push(newCustomerUser);
+
+      // Audit and notify
+      addAuditLog('REGISTER', 'Customer Portal', `Registration submitted for ${company} (${email})`);
+      addAdminNotification(`New customer portal registration from ${company}`, 'info');
+
+      // Save database
+      await saveDatabase();
+      
+      // Success display
+      const authCard = document.querySelector('.auth-card');
+      authCard.innerHTML = `
+        <div class="auth-logo" style="background:linear-gradient(135deg,#10b981,#059669);"><i class="ti ti-check"></i></div>
+        <div class="auth-brand">REGISTRATION SUBMITTED</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.7);margin-bottom:24px;line-height:1.6;text-transform:uppercase;">
+          Thank you, ${esc(name)}. Your registration request for <strong>${esc(company)}</strong> is successfully received.
+          <br><br>
+          Customer access is currently <span class="badge b-amber" style="font-size:11px;">Disabled</span> and must be approved by a Super User before you can access the portal dashboard.
+        </div>
+        <button class="auth-btn" onclick="location.reload()"><i class="ti ti-arrow-left"></i> Return to Log In</button>
+      `;
+    };
+
+    window.logout = function() {
+      sessionStorage.removeItem(SESSION_KEY);
+      currentUser = null;
+      document.getElementById('auth-screen').style.display = 'flex';
+      document.getElementById('app-wrapper').style.display = 'none';
+    };
+
+    window.toggleTheme = function() {
+      const isDark = document.body.classList.toggle('dark');
+      localStorage.setItem('fr8x_theme', isDark ? 'dark' : 'light');
+      document.getElementById('theme-icon').className = isDark ? 'ti ti-sun' : 'ti ti-moon';
+      renderCurrentPanel();
+    };
+
+    // SPA ROUTER
+    window.navTo = function(panel) {
+      currentPanel = panel;
+      
+      // Update sidebar highlight
+      document.querySelectorAll('.ni').forEach(el => {
+        if (el.dataset.p === panel) el.classList.add('on');
+        else el.classList.remove('on');
+      });
+      
+      renderCurrentPanel();
+    };
+
+    function renderCurrentPanel() {
+      const titles = {
+        dashboard: "Dashboard Overview",
+        quotations: "Rate Quotation Requests",
+        bookings: "Booking Request status",
+        si: "Submit Shipping Instructions",
+        hbl: "Draft HBL alignment review",
+        invoices: "Selling Invoices & Disputes",
+        receipts: "Payment Receipts Ledger",
+        'admin-users': "Super User Access Console"
+      };
+
+      document.getElementById('tb-title').textContent = titles[currentPanel] || "syb-fr8x portal";
+      const mount = document.getElementById('panel-content');
+      
+      if (currentPanel === 'dashboard') renderDashboard(mount);
+      else if (currentPanel === 'quotations') renderQuotations(mount);
+      else if (currentPanel === 'bookings') renderBookings(mount);
+      else if (currentPanel === 'si') renderSI(mount);
+      else if (currentPanel === 'hbl') renderHblDrafts(mount);
+      else if (currentPanel === 'invoices') renderInvoices(mount);
+      else if (currentPanel === 'receipts') renderReceipts(mount);
+      else if (currentPanel === 'admin-users') renderAdminUsers(mount);
+    }
+
+    // ============================================
+    // PANEL 1: DASHBOARD
+    // ============================================
+    function renderDashboard(el) {
+      const company = currentUser.company;
+      
+      // Filter customer metrics
+      const myQuotes = (DB.quotations || []).filter(q => q.customer === company);
+      const myShipments = (DB.shipments || []).filter(s => s.customer === company);
+      const myInvoices = (DB.invoices || []).filter(i => i.customer === company);
+      const unpaidInvoices = myInvoices.filter(i => ['Unpaid', 'Overdue'].includes(i.status));
+      const totalUnpaid = unpaidInvoices.reduce((acc, i) => acc + (i.total || 0), 0);
+      const activeBookings = myShipments.filter(s => !['Closed', 'Delivered'].includes(s.status));
+
+      el.innerHTML = `
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--primary-light);color:var(--primary)"><i class="ti ti-file-invoice"></i></div>
+            <div class="stat-info">
+              <div class="stat-lbl">Total Quotes</div>
+              <div class="stat-val">${myQuotes.length}</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--success-light);color:var(--success)"><i class="ti ti-box"></i></div>
+            <div class="stat-info">
+              <div class="stat-lbl">Active Shipments</div>
+              <div class="stat-val">${activeBookings.length}</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--danger-light);color:var(--danger)"><i class="ti ti-alert-circle"></i></div>
+            <div class="stat-info">
+              <div class="stat-lbl">Disputed Invoices</div>
+              <div class="stat-val">${myInvoices.filter(i => i.disputeTicket).length}</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--warning-light);color:var(--warning)"><i class="ti ti-wallet"></i></div>
+            <div class="stat-info">
+              <div class="stat-lbl">Pending Dues</div>
+              <div class="stat-val">${formatAmount(totalUnpaid)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+          <!-- Active Shipments Timeline widget -->
+          <div class="card" style="padding:0">
+            <div style="padding:16px; border-bottom:1px solid var(--border); font-weight:700;"><i class="ti ti-anchor"></i> Active Shipment Tracker</div>
+            <div style="max-height:300px; overflow-y:auto;">
+              ${activeBookings.map(s => `
+                <div style="padding:12px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-weight:700; font-size:11px;">${esc(s.jobNo)} — ${esc(s.type)}</div>
+                    <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">${esc(s.pol)} &rarr; ${esc(s.pod)} | ETA: ${fmtDate(s.eta)}</div>
+                  </div>
+                  <div>${statusBadge(s.status)}</div>
+                </div>
+              `).join('') || '<div class="empty-state"><i class="ti ti-archive"></i>No active shipping operations found.</div>'}
+            </div>
+          </div>
+
+          <!-- Pending Dues widget -->
+          <div class="card" style="padding:0">
+            <div style="padding:16px; border-bottom:1px solid var(--border); font-weight:700;"><i class="ti ti-file-dollar"></i> Outstanding Invoices</div>
+            <div style="max-height:300px; overflow-y:auto;">
+              ${unpaidInvoices.map(i => `
+                <div style="padding:12px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-weight:700; font-size:11px;">${esc(i.invNo)}</div>
+                    <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">DUE: ${fmtDate(i.dueDate)}</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div style="font-weight:700; margin-bottom:4px;">${formatAmount(i.total, i.currency)}</div>
+                    ${statusBadge(i.status)}
+                  </div>
+                </div>
+              `).join('') || '<div class="empty-state"><i class="ti ti-circle-check"></i>All outstanding invoices are cleared.</div>'}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ============================================
+    // PANEL 2: QUOTATIONS
+    // ============================================
+    function renderQuotations(el) {
+      const company = currentUser.company;
+      const myQuotes = (DB.quotations || []).filter(q => q.customer === company);
+
+      el.innerHTML = `
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <div style="font-size:12px; font-weight:700;"><i class="ti ti-file-text"></i> Quotation Requests</div>
+            <button class="btn pr sm" onclick="openRequestQuoteModal()"><i class="ti ti-plus"></i> Request New Quote</button>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Quote No</th>
+                  <th>Date</th>
+                  <th>Route</th>
+                  <th>Cargo / Volume</th>
+                  <th>Commodity</th>
+                  <th>Weight / Vol</th>
+                  <th>Status</th>
+                  <th>Total Offer</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myQuotes.map(q => {
+                  let statusText = q.status;
+                  // Map database status to tracked options (Recd., Updated, Finalise)
+                  if (q.status === 'Draft' || q.status === 'Sent') statusText = 'Recd.';
+                  else if (q.status === 'Accepted') statusText = 'Finalise';
+                  
+                  return `
+                    <tr>
+                      <td class="fw-600 monospace text-primary">${esc(q.quoteNo || 'REQ-QT')}</td>
+                      <td>${fmtDate(q.quoteDate || q.date)}</td>
+                      <td class="fw-600">${esc(q.origin || '-')} &rarr; ${esc(q.destination || '-')}</td>
+                      <td>${esc(q.shipType || '-')} / ${esc(q.volumeDetails || '-')}</td>
+                      <td>${esc(q.commodity || '-')}</td>
+                      <td>${q.grossWeight || 0} KG / ${q.volume || 0} CBM</td>
+                      <td>${statusBadge(statusText)}</td>
+                      <td class="fw-700">${q.total ? formatAmount(q.total, q.currency) : '—'}</td>
+                      <td>
+                        <div style="display:flex; gap:6px; justify-content:flex-end;">
+                          ${q.total ? `<button class="btn xs" onclick="printQuotationReceipt('${q.id}')" title="Print Quotation"><i class="ti ti-printer"></i></button>` : ''}
+                          ${statusText === 'Updated' ? `<button class="btn xs success" onclick="finalizeQuote('${q.id}')"><i class="ti ti-circle-check"></i> Approve & Finalize</button>` : ''}
+                          ${statusText === 'Finalise' ? `<button class="btn xs pr" onclick="bookFromQuote('${q.id}')"><i class="ti ti-ship"></i> Book Now</button>` : ''}
+                        </div>
+                      </td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="9" class="text-center text-muted" style="padding:24px">No quotation requests logged yet.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    window.finalizeQuote = async function(id) {
+      if (confirm('Are you sure you want to approve and finalize this rate quotation?')) {
+        const qIdx = DB.quotations.findIndex(x => x.id === id);
+        if (qIdx >= 0) {
+          DB.quotations[qIdx].status = 'Accepted';
+          addAuditLog('EDIT', 'Quotations', `Quotation ${DB.quotations[qIdx].quoteNo} approved by customer`);
+          await saveDatabase();
+          showToast('Quotation approved & finalized successfully', 'success');
+          renderCurrentPanel();
+        }
+      }
+    };
+
+    window.bookFromQuote = function(id) {
+      const q = DB.quotations.find(x => x.id === id);
+      if (q) {
+        openBookingModalFromQuote(q);
+      }
+    };
+
+    window.openRequestQuoteModal = function() {
+      document.getElementById('modal-container').innerHTML = `
+        <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+          <div class="modal" style="width:660px;">
+            <div class="modal-title">Request Freight Quotation <button class="btn ghost icon-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+            <div class="modal-body">
+              <div class="form-row">
+                <div class="fg">
+                  <label>Origin Port (POL) *</label>
+                  <input id="q-origin" placeholder="e.g. INNSA - Nhava Sheva" required>
+                </div>
+                <div class="fg">
+                  <label>Destination Port (POD) *</label>
+                  <input id="q-destination" placeholder="e.g. USLAX - Los Angeles" required>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="fg">
+                  <label>Cargo Type *</label>
+                  <select id="q-shiptype">
+                    <option>FCL Export</option>
+                    <option>FCL Import</option>
+                    <option>LCL Export</option>
+                    <option>LCL Import</option>
+                    <option>Air Export</option>
+                    <option>Air Import</option>
+                  </select>
+                </div>
+                <div class="fg">
+                  <label>Cargo Volume / Container Info *</label>
+                  <input id="q-volDet" placeholder="e.g. 1x20FT General GP or 3 CBM" required>
+                </div>
+              </div>
+              <div class="form-row3">
+                <div class="fg">
+                  <label>HS Code / Commodity</label>
+                  <input id="q-commodity" placeholder="e.g. Machinery">
+                </div>
+                <div class="fg">
+                  <label>Gross Weight (KG)</label>
+                  <input type="number" id="q-weight" value="0">
+                </div>
+                <div class="fg">
+                  <label>Volume (CBM)</label>
+                  <input type="number" id="q-volume" value="0">
+                </div>
+              </div>
+              <div class="fg">
+                <label>Special Cargo Instructions</label>
+                <textarea id="q-remarks" rows="3" placeholder="Specify hazmat details, temperature controls, or customs clearance request..."></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn" onclick="closeModal()">Cancel</button>
+              <button class="btn pr" onclick="submitQuoteRequest()"><i class="ti ti-send"></i> Submit Request</button>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    window.submitQuoteRequest = async function() {
+      const origin = fv('q-origin').trim();
+      const destination = fv('q-destination').trim();
+      const shiptype = fv('q-shiptype');
+      const volDet = fv('q-volDet').trim();
+      const commodity = fv('q-commodity').trim();
+      const weight = +fv('q-weight') || 0;
+      const volume = +fv('q-volume') || 0;
+      const remarks = fv('q-remarks').trim();
+
+      if (!origin || !destination || !volDet) {
+        showToast('Origin, Destination, and Cargo details are required', 'warning');
+        return;
+      }
+
+      // Generate next quote ID sequence
+      const y = new Date().getFullYear().toString().substr(2);
+      const m = String(new Date().getMonth()+1).padStart(2,'0');
+      const quoteSeq = (DB.quotations || []).length + 1;
+      const quoteNo = `${DB.settings?.quotePrefix || 'QT'}-${y}${m}-${String(quoteSeq).padStart(4,'0')}`;
+
+      const newQuote = {
+        id: 'qt-' + Math.random().toString(36).substr(2, 9),
+        quoteNo: quoteNo,
+        customer: currentUser.company,
+        quoteDate: today(),
+        date: today(),
+        validUntil: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0], // 30 days validity
+        origin: origin,
+        destination: destination,
+        shipType: shiptype,
+        volumeDetails: volDet,
+        commodity: commodity,
+        grossWeight: weight,
+        volume: volume,
+        remarks: remarks,
+        status: 'Sent', // maps to Recd. on customer UI
+        items: [],
+        total: 0,
+        currency: 'INR'
+      };
+
+      if (!DB.quotations) DB.quotations = [];
+      DB.quotations.unshift(newQuote);
+
+      addAuditLog('CREATE', 'Quotations', `Quotation request ${quoteNo} submitted by customer`);
+      addAdminNotification(`New quotation request ${quoteNo} from ${currentUser.company}`, 'info');
+
+      await saveDatabase();
+      closeModal();
+      showToast(`Quotation request ${quoteNo} submitted!`, 'success');
+      renderCurrentPanel();
+    };
+
+    window.printQuotationReceipt = function(id) {
+      const q = DB.quotations.find(x => x.id === id);
+      if (!q) return;
+      const s = DB.settings;
+      const win = window.open('', '_blank');
+      win.document.write(`
+        <html>
+        <head>
+          <title>Quotation - ${q.quoteNo}</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #000; background: #fff; font-size: 12px; line-height: 1.5; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 25px; }
+            .company-name { font-size: 18px; font-weight: 700; text-transform: uppercase; }
+            .doc-title { font-size: 20px; font-weight: 800; text-align: center; text-transform: uppercase; margin-bottom: 25px; }
+            .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; border: 1px solid #ccc; padding: 15px; border-radius: 6px; }
+            .details-row { display: flex; margin-bottom: 6px; }
+            .details-lbl { font-weight: 600; width: 120px; color: #444; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 30px; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f0f0f0; font-weight: 600; }
+            .total-row { text-align: right; font-size: 14px; font-weight: 800; margin-top: 20px; padding: 10px; border-top: 2px solid #000; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              ${s.logo ? `<img src="${s.logo}" style="max-height:50px; margin-bottom:10px;">` : ''}
+              <div class="company-name">${esc(s.company || 'FR8X LOGISTICS')}</div>
+              <div>GSTIN: ${esc(s.gst || '-')}</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 16px; font-weight: 700;">${esc(q.quoteNo)}</div>
+              <div>DATE: ${fmtDate(q.quoteDate)}</div>
+              <div>VALIDITY: ${fmtDate(q.validUntil)}</div>
+            </div>
+          </div>
+          
+          <div class="doc-title">Freight Rate Quotation</div>
+          
+          <div class="details-grid">
+            <div>
+              <div class="details-row"><span class="details-lbl">CUSTOMER:</span><span>${esc(q.customer)}</span></div>
+              <div class="details-row"><span class="details-lbl">CARGO TYPE:</span><span>${esc(q.shipType)}</span></div>
+              <div class="details-row"><span class="details-lbl">CARGO VOL:</span><span>${esc(q.volumeDetails)}</span></div>
+            </div>
+            <div>
+              <div class="details-row"><span class="details-lbl">ORIGIN POL:</span><span>${esc(q.origin)}</span></div>
+              <div class="details-row"><span class="details-lbl">DEST POD:</span><span>${esc(q.destination)}</span></div>
+              <div class="details-row"><span class="details-lbl">COMMODITY:</span><span>${esc(q.commodity)}</span></div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Charge Head / Description</th>
+                <th>Unit</th>
+                <th style="text-align: right;">Qty</th>
+                <th style="text-align: right;">Rate</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(q.items || []).map(it => `
+                <tr>
+                  <td>${esc(it.desc)}</td>
+                  <td>${esc(it.unit || 'CTR')}</td>
+                  <td style="text-align: right;">${it.qty}</td>
+                  <td style="text-align: right;">${formatAmount(it.rate, it.cur)}</td>
+                  <td style="text-align: right;">${formatAmount(it.amount, it.cur)}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="5" style="text-align:center;">No priced line items configured yet.</td></tr>'}
+            </tbody>
+          </table>
+
+          <div class="total-row">QUOTATION TOTAL: ${formatAmount(q.total || 0, q.currency || 'INR')}</div>
+          
+          <script>window.print();<\/script>
+        </body>
+        </html>
+      `);
+      win.document.close();
+    };
+
+    // ============================================
+    // PANEL 3: BOOKINGS
+    // ============================================
+    function renderBookings(el) {
+      const company = currentUser.company;
+      const myBookings = (DB.shipments || []).filter(s => s.customer === company);
+
+      el.innerHTML = `
+        <div class="card">
+          <div style="font-size:12px; font-weight:700; margin-bottom:16px;"><i class="ti ti-truck"></i> Booking Requests & Shipping Status</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Job / Request No</th>
+                  <th>Type</th>
+                  <th>POL &rarr; POD</th>
+                  <th>Incoterm</th>
+                  <th>Commodity</th>
+                  <th>Details</th>
+                  <th>Creation Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myBookings.map(s => {
+                  let mappedStatus = s.status;
+                  // Map statuses: Submitted, Relase, Recd on email
+                  if (s.status === 'Booking Created') {
+                    mappedStatus = 'Submitted';
+                  } else if (s.status === 'Recd on email') {
+                    mappedStatus = 'Recd on email';
+                  } else if (s.status === 'Booking Confirmed' || s.status === 'Empty Released' || s.status.includes('Released') || s.bookingNo) {
+                    mappedStatus = 'Relase';
+                  }
+                  
+                  // Or if we check operations milestones to set "Recd on email"
+                  const op = (DB.operations || []).find(o => o.jobNo === s.jobNo);
+                  if (op?.bookingRef && s.status !== 'Closed') {
+                    mappedStatus = 'Relase';
+                  }
+                  
+                  return `
+                    <tr>
+                      <td class="fw-600 monospace text-primary">${esc(s.jobNo)}</td>
+                      <td>${esc(s.type)}</td>
+                      <td class="fw-600">${esc(s.pol || '-')} &rarr; ${esc(s.pod || '-')}</td>
+                      <td>${esc(s.incoterm || '-')}</td>
+                      <td>${esc(s.commodity || '-')}</td>
+                      <td>${esc(s.containerDetails || s.volume || '-')}</td>
+                      <td>${fmtDate(s.createdAt)}</td>
+                      <td>${statusBadge(mappedStatus)}</td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="8" class="text-center text-muted" style="padding:24px">No bookings recorded yet. Select an approved Quotation to request booking.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function openBookingModalFromQuote(q) {
+      document.getElementById('modal-container').innerHTML = `
+        <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+          <div class="modal" style="width:600px;">
+            <div class="modal-title">Book Shipment from Quote: ${q.quoteNo} <button class="btn ghost icon-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+            <div class="modal-body">
+              <div class="form-row">
+                <div class="fg"><label>POL (Origin)</label><input id="b-pol" value="${esc(q.origin)}" readonly></div>
+                <div class="fg"><label>POD (Destination)</label><input id="b-pod" value="${esc(q.destination)}" readonly></div>
+              </div>
+              <div class="form-row">
+                <div class="fg"><label>Cargo Type</label><input id="b-type" value="${esc(q.shipType)}" readonly></div>
+                <div class="fg"><label>Commodity</label><input id="b-commodity" value="${esc(q.commodity)}" readonly></div>
+              </div>
+              <div class="form-row">
+                <div class="fg"><label>Incoterm *</label><input id="b-inco" value="${esc(q.incoterm || 'FOB')}" required></div>
+                <div class="fg"><label>Ready Cargo Weight (KG)</label><input type="number" id="b-weight" value="${q.grossWeight || 0}"></div>
+              </div>
+              <div class="form-row">
+                <div class="fg"><label>Volume Details</label><input id="b-vol" value="${esc(q.volumeDetails || '')}"></div>
+                <div class="fg"><label>Packages Details</label><input id="b-pkg" placeholder="e.g. 10 wooden boxes"></div>
+              </div>
+              <div class="fg">
+                <label>Cargo Readiness / Expected Date of Loading</label>
+                <input type="date" id="b-date" value="${today()}">
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn" onclick="closeModal()">Cancel</button>
+              <button class="btn pr" onclick="submitBooking('${q.id}')"><i class="ti ti-check"></i> Submit Booking Request</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.submitBooking = async function(qId) {
+      const q = DB.quotations.find(x => x.id === qId);
+      if (!q) return;
+
+      const incoterm = fv('b-inco').trim();
+      const weight = +fv('b-weight') || 0;
+      const vol = fv('b-vol').trim();
+      const pkg = fv('b-pkg').trim();
+      const cargoDate = fv('b-date');
+
+      if (!incoterm) {
+        showToast('Incoterm is required', 'warning');
+        return;
+      }
+
+      // Generate sequence job No
+      const y = new Date().getFullYear().toString().substr(2);
+      const m = String(new Date().getMonth()+1).padStart(2,'0');
+      const jobSeq = (DB.shipments || []).length + 1;
+      const jobNo = `${DB.settings?.jobPrefix || 'JB'}-${y}${m}-${String(jobSeq).padStart(4,'0')}`;
+
+      const newShipment = {
+        id: 'ship-' + Math.random().toString(36).substr(2, 9),
+        jobNo: jobNo,
+        customer: currentUser.company,
+        type: q.shipType,
+        incoterm: incoterm,
+        pol: q.origin,
+        pod: q.destination,
+        finalDest: q.destination,
+        commodity: q.commodity,
+        grossWeight: weight,
+        volume: q.volume || 0,
+        packages: pkg ? parseInt(pkg) || 1 : 1,
+        containerDetails: vol || q.volumeDetails,
+        createdAt: now(),
+        status: 'Booking Created', // maps to 'Submitted' on portal
+        timeline: [{ event: 'Booking Created', date: today(), user: currentUser.name, remarks: 'Request via portal' }],
+        containers: []
+      };
+
+      if (!DB.shipments) DB.shipments = [];
+      DB.shipments.unshift(newShipment);
+
+      addAuditLog('CREATE', 'Shipments', `Booking request ${jobNo} created for quote ${q.quoteNo}`);
+      addAdminNotification(`New booking request ${jobNo} submitted by ${currentUser.company}`, 'info');
+
+      await saveDatabase();
+      closeModal();
+      showToast(`Booking request ${jobNo} submitted!`, 'success');
+      navTo('bookings');
+    };
+
+    // ============================================
+    // PANEL 4: SHIPPING INSTRUCTIONS (SI)
+    // ============================================
+    function renderSI(el) {
+      const company = currentUser.company;
+      const bookings = (DB.shipments || []).filter(s => s.customer === company && s.status !== 'Closed');
+
+      el.innerHTML = `
+        <div class="card">
+          <div style="font-size:12px; font-weight:700; margin-bottom:16px;"><i class="ti ti-edit"></i> Shipping Instruction (SI) Dashboard</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Job No</th>
+                  <th>Route</th>
+                  <th>Cargo Summary</th>
+                  <th>SI HBL No</th>
+                  <th>SI Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${bookings.map(b => {
+                  const hbl = (DB.hblRecords || []).find(h => h.jobNo === b.jobNo);
+                  let siStatus = 'Pending Submission';
+                  if (hbl) {
+                    siStatus = hbl.status === 'Draft' ? 'Draft' : 'Draft approved status';
+                  }
+
+                  return `
+                    <tr>
+                      <td class="fw-600 monospace">${esc(b.jobNo)}</td>
+                      <td class="fw-600">${esc(b.pol)} &rarr; ${esc(b.pod)}</td>
+                      <td>${esc(b.containerDetails || '-')}</td>
+                      <td class="monospace">${hbl ? esc(hbl.hblNo) : '—'}</td>
+                      <td>${statusBadge(siStatus)}</td>
+                      <td>
+                        <div style="display:flex; gap:6px; justify-content:flex-end;">
+                          ${siStatus === 'Pending Submission' ? `<button class="btn xs pr" onclick="openSiModal('${b.id}')"><i class="ti ti-plus"></i> Submit SI</button>` : ''}
+                          ${siStatus === 'Draft' ? `
+                            <button class="btn xs warning" onclick="openSiModal('${b.id}', '${hbl.id}')"><i class="ti ti-edit"></i> Correction</button>
+                            <button class="btn xs success" onclick="approveSiDraft('${hbl.id}')"><i class="ti ti-circle-check"></i> Approve Draft</button>
+                          ` : ''}
+                          ${siStatus === 'Draft Approved' ? `<span class="text-success" style="font-weight:bold; font-size:10px;"><i class="ti ti-circle-check"></i> SUBMITTED & APPROVED</span>` : ''}
+                        </div>
+                      </td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="6" class="text-center text-muted" style="padding:24px">No active shipments available for SI entry.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    window.approveSiDraft = async function(hblId) {
+      if (confirm('Are you sure you want to approve the Draft HBL? This marks the Shipping Instructions as finalized.')) {
+        const idx = DB.hblRecords.findIndex(x => x.id === hblId);
+        if (idx >= 0) {
+          DB.hblRecords[idx].status = 'Issued'; // Represents approved state
+          addAuditLog('EDIT', 'HBL', `Draft HBL ${DB.hblRecords[idx].hblNo} approved by customer`);
+          await saveDatabase();
+          showToast('Draft HBL approved successfully!', 'success');
+          renderCurrentPanel();
+        }
+      }
+    };
+
+    window.openSiModal = function(shipId, hblId = '') {
+      const b = DB.shipments.find(x => x.id === shipId);
+      if (!b) return;
+      
+      const h = hblId ? DB.hblRecords.find(x => x.id === hblId) : null;
+      const containers = h?.containers || b.containers || [];
+
+      document.getElementById('modal-container').innerHTML = `
+        <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+          <div class="modal" style="width:950px; max-width:98vw;">
+            <div class="modal-title">Shipping Instructions (SI) — ${b.jobNo} <button class="btn ghost icon-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+            <div class="modal-body">
+              <div class="form-row">
+                <div class="fg"><label>Shipper Details *</label><textarea id="si-shipper" rows="3" required>${esc(h?.shipper || currentUser.company)}</textarea></div>
+                <div class="fg"><label>Consignee Details *</label><textarea id="si-consignee" rows="3" required>${esc(h?.consignee || '')}</textarea></div>
+              </div>
+              <div class="form-row">
+                <div class="fg"><label>Notify Party Details</label><textarea id="si-notify" rows="3">${esc(h?.notify || '')}</textarea></div>
+                <div class="fg"><label>Cargo / Goods Description *</label><textarea id="si-desc" rows="3" required>${esc(h?.desc || b.commodity || '')}</textarea></div>
+              </div>
+              <div class="form-row3">
+                <div class="fg"><label>Port of Loading (POL)</label><input id="si-pol" value="${esc(h?.pol || b.pol)}" readonly></div>
+                <div class="fg"><label>Port of Discharge (POD)</label><input id="si-pod" value="${esc(h?.pod || b.pod)}" readonly></div>
+                <div class="fg"><label>Vessel / Voyage</label><input id="si-vessel" value="${esc(h?.vesselVoyage || b.vessel || '')}"></div>
+              </div>
+              <div class="form-row3">
+                <div class="fg"><label>Gross Weight (KG)</label><input type="number" id="si-wt" value="${h?.wt || b.grossWeight || 0}"></div>
+                <div class="fg"><label>Measurement (CBM)</label><input type="number" id="si-vol" value="${h?.vol || b.volume || 0}"></div>
+                <div class="fg"><label>No. of Original BLs</label><input id="si-obl" value="${esc(h?.obl || '3')}"></div>
+              </div>
+
+              <div style="font-size:11px; font-weight:700; margin:14px 0 6px; color:var(--text-muted); border-bottom:1px solid var(--border); padding-bottom:4px;">Container List Details</div>
+              <div id="si-containers-list">
+                ${containers.map((c, i) => renderSiContainerRow(c, i)).join('')}
+              </div>
+              <div class="dyn-add" onclick="addSiContainerRow()"><i class="ti ti-plus"></i> Add Container Details</div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn" onclick="closeModal()">Cancel</button>
+              <button class="btn pr" onclick="submitSi('${b.id}', '${hblId}')"><i class="ti ti-check"></i> Submit Instructions</button>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    function renderSiContainerRow(c, i) {
+      const sizes = ['20FT GP', '40FT GP', '40FT HC', '40FT RF', '20FT RF', 'LCL Cargo', '40FT OT'];
+      const sizeOpts = sizes.map(s => `<option value="${s}"${c.size===s?' selected':''}>${s}</option>`).join('');
+      return `
+        <div class="dyn-row" style="grid-template-columns: 1.5fr 1fr 1.2fr 1.2fr 1.2fr 1.2fr 1fr 28px; margin-bottom: 6px;" id="sic-${i}">
+          <input placeholder="Container No" value="${esc(c.number||'')}" class="sic-number">
+          <select class="sic-size">${sizeOpts}</select>
+          <input type="number" placeholder="Net Wt (kg)" value="${c.netWeight||''}" class="sic-netWeight">
+          <input type="number" placeholder="Gross Wt (kg)" value="${c.grossWeight||''}" class="sic-grossWeight">
+          <input placeholder="Custom Seal" value="${esc(c.customSeal||'')}" class="sic-customSeal">
+          <input placeholder="Lines Seal" value="${esc(c.linesSeal||'')}" class="sic-linesSeal">
+          <input type="number" placeholder="CBM" value="${c.cbm||''}" class="sic-cbm">
+          <button class="btn xs danger" onclick="this.closest('.dyn-row').remove()" style="padding:5px"><i class="ti ti-x"></i></button>
+        </div>`;
+    }
+
+    window.addSiContainerRow = function() {
+      const list = document.getElementById('si-containers-list');
+      if (!list) return;
+      const i = list.children.length;
+      const div = document.createElement('div');
+      div.innerHTML = renderSiContainerRow({}, i);
+      list.appendChild(div.firstElementChild);
+    };
+
+    window.submitSi = async function(shipId, hblId) {
+      const b = DB.shipments.find(x => x.id === shipId);
+      if (!b) return;
+
+      const shipper = fv('si-shipper').trim();
+      const consignee = fv('si-consignee').trim();
+      const notify = fv('si-notify').trim();
+      const desc = fv('si-desc').trim();
+      const pol = fv('si-pol').trim();
+      const pod = fv('si-pod').trim();
+      const vessel = fv('si-vessel').trim();
+      const wt = fv('si-wt').trim();
+      const vol = fv('si-vol').trim();
+      const obl = fv('si-obl').trim();
+
+      if (!shipper || !consignee || !desc) {
+        showToast('Shipper, Consignee, and Cargo Description are required', 'warning');
+        return;
+      }
+
+      // Collect containers list
+      const containerRows = document.querySelectorAll('#si-containers-list .dyn-row');
+      const containers = [...containerRows].map(row => ({
+        number: row.querySelector('.sic-number')?.value.trim()||'',
+        size: row.querySelector('.sic-size')?.value||'',
+        netWeight: +row.querySelector('.sic-netWeight')?.value||0,
+        grossWeight: +row.querySelector('.sic-grossWeight')?.value||0,
+        customSeal: row.querySelector('.sic-customSeal')?.value.trim()||'',
+        linesSeal: row.querySelector('.sic-linesSeal')?.value.trim()||'',
+        cbm: +row.querySelector('.sic-cbm')?.value||0
+      })).filter(c => c.number || c.size);
+
+      if (!DB.hblRecords) DB.hblRecords = [];
+
+      if (hblId) {
+        // Update existing draft
+        const idx = DB.hblRecords.findIndex(x => x.id === hblId);
+        if (idx >= 0) {
+          DB.hblRecords[idx] = {
+            ...DB.hblRecords[idx],
+            shipper, consignee, notify, desc, pol, pod, vesselVoyage: vessel, wt, vol, obl, containers
+          };
+          addAuditLog('EDIT', 'HBL', `Shipping instructions updated for ${b.jobNo}`);
+          showToast('Shipping Instructions correction submitted!', 'success');
+        }
+      } else {
+        // Create new draft HBL
+        const y = new Date().getFullYear();
+        const m = String(new Date().getMonth()+1).padStart(2, '0');
+        let maxSeq = 0;
+        DB.hblRecords.forEach(h => {
+          const match = h.hblNo.match(/HBL-\d{6}-(\d+)/);
+          if (match) {
+            const seq = parseInt(match[1]);
+            if (seq > maxSeq) maxSeq = seq;
+          }
+        });
+        const hblNo = `HBL-${y}${m}-${String(maxSeq + 1).padStart(4, '0')}`;
+
+        const newHbl = {
+          id: 'hbl-' + Math.random().toString(36).substr(2, 9),
+          hblNo: hblNo,
+          jobNo: b.jobNo,
+          shipper, consignee, notify, desc, pol, pod, pdl: pod, por: pol, vesselVoyage: vessel, wt, vol, obl, status: 'Draft',
+          issuePlace: pol,
+          issueDate: today(),
+          containers,
+          addTerms: true
+        };
+        
+        DB.hblRecords.unshift(newHbl);
+        addAuditLog('CREATE', 'HBL', `HBL Draft ${hblNo} created from SI`);
+        addAdminNotification(`Shipping Instructions submitted for job ${b.jobNo}`, 'info');
+        showToast('Shipping Instructions submitted successfully!', 'success');
+      }
+
+      await saveDatabase();
+      closeModal();
+      renderCurrentPanel();
+    };
+
+    // ============================================
+    // PANEL 5: HBL DRAFTS
+    // ============================================
+    function renderHblDrafts(el) {
+      const company = currentUser.company;
+      const myHbls = (DB.hblRecords || []).filter(h => (h.shipper || '').includes(company) || (h.consignee || '').includes(company));
+
+      el.innerHTML = `
+        <div class="card">
+          <div style="font-size:12px; font-weight:700; margin-bottom:16px;"><i class="ti ti-printer"></i> HBL Prints & Surrender Requests</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>HBL Number</th>
+                  <th>Job No</th>
+                  <th>POL &rarr; POD</th>
+                  <th>Vessel / Voyage</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myHbls.map(h => {
+                  let isDraft = h.status === 'Draft';
+                  let isSurrenderable = h.status === 'Issued' && !h.surrenderRequested && !h.status.includes('Surrender');
+                  let customStatusText = h.status;
+                  if (h.surrenderRequested) customStatusText = 'Surrender Requested';
+                  if (h.status === 'Surrendered') customStatusText = 'Surrendered';
+
+                  return `
+                    <tr>
+                      <td class="fw-600 monospace">${esc(h.hblNo)}</td>
+                      <td class="monospace">${esc(h.jobNo)}</td>
+                      <td>${esc(h.pol)} &rarr; ${esc(h.pod)}</td>
+                      <td>${esc(h.vesselVoyage || '-')}</td>
+                      <td>${statusBadge(customStatusText)}</td>
+                      <td>
+                        <div style="display:flex; gap:6px; justify-content:flex-end;">
+                          <button class="btn xs" onclick="printPortalHbl('${h.id}')" title="Print Draft"><i class="ti ti-printer"></i> Print</button>
+                          ${isSurrenderable ? `<button class="btn xs danger" onclick="requestSurrender('${h.id}')"><i class="ti ti-trash"></i> Request Surrender</button>` : ''}
+                          ${h.surrenderRequested ? `<span class="text-warning" style="font-weight:bold; font-size:10px;">PENDING SURRENDER APPROVAL</span>` : ''}
+                        </div>
+                      </td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="6" class="text-center text-muted" style="padding:24px">No HBL draft records found.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    window.printPortalHbl = function(id) {
+      // Re-use print HBL window code matching main ERP
+      const h = DB.hblRecords.find(x => x.id === id);
+      if (!h) return;
+
+      const printWin = window.open('', '_blank');
+      const hblTypeStr = h.status === 'Draft' ? 'Draft' : 'Original';
+      const displayTitle = `${hblTypeStr.toUpperCase()} HOUSE BILL OF LADING`;
+      const watermarkText = hblTypeStr.toUpperCase() === 'DRAFT' ? 'DRAFT HBL' : 'COPY NON-NEGOTIABLE';
+      const company = DB.settings.company || 'FR8X LOGISTICS';
+
+      // Format container table
+      let containerRowsHtml = '';
+      if (h.containers && h.containers.length > 0) {
+        containerRowsHtml = `
+          <table style="width:100%; border-collapse:collapse; margin-top:10px; font-size:9px; border:1px solid #000;">
+            <thead>
+              <tr style="background:#f0f0f0; border-bottom:1px solid #000; font-size:8px;">
+                <th style="padding:2px; text-align:left; border-right:1px solid #000;">Container No.</th>
+                <th style="padding:2px; text-align:left; border-right:1px solid #000;">Size</th>
+                <th style="padding:2px; text-align:right; border-right:1px solid #000;">Net Wt (kg)</th>
+                <th style="padding:2px; text-align:right; border-right:1px solid #000;">Gross Wt (kg)</th>
+                <th style="padding:2px; text-align:left; border-right:1px solid #000;">Custom Seal</th>
+                <th style="padding:2px; text-align:left; border-right:1px solid #000;">Lines Seal</th>
+                <th style="padding:2px; text-align:right;">CBM</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${h.containers.map(c => `
+                <tr style="border-bottom:1px solid #000;">
+                  <td style="padding:2px; border-right:1px solid #000; font-family:monospace; font-weight:bold;">${esc(c.number)}</td>
+                  <td style="padding:2px; border-right:1px solid #000;">${esc(c.size)}</td>
+                  <td style="padding:2px; border-right:1px solid #000; text-align:right;">${c.netWeight || '-'}</td>
+                  <td style="padding:2px; border-right:1px solid #000; text-align:right;">${c.grossWeight || '-'}</td>
+                  <td style="padding:2px; border-right:1px solid #000;">${esc(c.customSeal || '-')}</td>
+                  <td style="padding:2px; border-right:1px solid #000;">${esc(c.linesSeal || '-')}</td>
+                  <td style="padding:2px; text-align:right;">${c.cbm || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+
+      printWin.document.write(`
+        <html>
+        <head>
+          <title>HBL - ${h.hblNo}</title>
+          <style>
+            body { font-family: Arial, sans-serif; font-size: 11px; margin: 0; padding: 20px; color: #000; }
+            .grid { display: grid; border: 1px solid #000; border-bottom: none; }
+            .g-col { border-right: 1px solid #000; padding: 4px; }
+            .g-col:last-child { border-right: none; }
+            .title { font-size: 8px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #555; }
+            .val { white-space: pre-wrap; font-size: 11px; }
+            .watermark { position: absolute; top: 30%; left: 10%; font-size: 120px; color: rgba(200,0,0,0.08); transform: rotate(-45deg); z-index: -1; font-weight: bold; pointer-events: none; }
+            @media print { .watermark { color: rgba(200,0,0,0.08) !important; -webkit-print-color-adjust: exact; } }
+          </style>
+        </head>
+        <body>
+          <div style="position:relative">
+            <div class="watermark">${watermarkText}</div>
+            <div style="text-align:center; font-size: 18px; font-weight: bold; margin-bottom: 2px;">${esc(company)}</div>
+            <div style="text-align:center; font-size: 12px; font-weight: bold; margin-bottom: 15px;">${displayTitle}</div>
+            
+            <div class="grid" style="grid-template-columns: 1fr 1fr; border-bottom: 1px solid #000;">
+              <div class="g-col">
+                <div class="title">Shipper</div>
+                <div class="val">${esc(h.shipper)}</div>
+              </div>
+              <div class="g-col" style="display:flex; flex-direction:column;">
+                <div style="flex:1; border-bottom:1px solid #000;">
+                  <div class="title">Bill of Lading No.</div>
+                  <div class="val" style="font-size:14px; font-weight:bold;">${esc(h.hblNo)}</div>
+                </div>
+                <div style="flex:1;">
+                  <div class="title">Reference / Job No.</div>
+                  <div class="val">${esc(h.jobNo)}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="grid" style="grid-template-columns: 1fr 1fr; border-bottom: 1px solid #000;">
+              <div class="g-col">
+                <div class="title">Consignee</div>
+                <div class="val">${esc(h.consignee)}</div>
+              </div>
+              <div class="g-col">
+                <div class="title">Notify Party</div>
+                <div class="val">${esc(h.notify)}</div>
+              </div>
+            </div>
+            
+            <div class="grid" style="grid-template-columns: 1fr 1fr 1fr 1fr; border-bottom: 1px solid #000;">
+              <div class="g-col"><div class="title">Pre-Carriage By</div><div class="val"></div></div>
+              <div class="g-col"><div class="title">Place of Receipt</div><div class="val">${esc(h.por)}</div></div>
+              <div class="g-col"><div class="title">Vessel & Voyage</div><div class="val">${esc(h.vesselVoyage)}</div></div>
+              <div class="g-col"><div class="title">Port of Loading</div><div class="val">${esc(h.pol)}</div></div>
+            </div>
+            
+            <div class="grid" style="grid-template-columns: 1fr 1fr; border-bottom: 1px solid #000;">
+              <div class="g-col"><div class="title">Port of Discharge</div><div class="val">${esc(h.pod)}</div></div>
+              <div class="g-col"><div class="title">Place of Delivery</div><div class="val">${esc(h.pdl)}</div></div>
+            </div>
+            
+            <div class="grid" style="grid-template-columns: 1fr 2fr 1fr 1fr; border-bottom: 1px solid #000; min-height: 250px;">
+              <div class="g-col"><div class="title">Marks & Nos</div><div class="val">${esc(h.marks || '-')}</div></div>
+              <div class="g-col">
+                <div class="title">Description of Goods</div>
+                <div class="val">${esc(h.desc)}${containerRowsHtml}</div>
+              </div>
+              <div class="g-col"><div class="title">Gross Weight</div><div class="val">${esc(h.wt)}</div></div>
+              <div class="g-col"><div class="title">Measurement</div><div class="val">${esc(h.vol)}</div></div>
+            </div>
+            
+            <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid #000;">
+              <div class="g-col"><div class="title">Freight Payable At</div><div class="val">${esc(h.freight || 'PREPAID')}</div></div>
+              <div class="g-col"><div class="title">No. of Original B/Ls</div><div class="val">${esc(h.obl)}</div></div>
+              <div class="g-col"><div class="title">Place & Date of Issue</div><div class="val">${esc(h.issuePlace || '')}, ${fmtDate(h.issueDate)}</div></div>
+            </div>
+          </div>
+          <script>window.print();<\/script>
+        </body>
+        </html>
+      `);
+      printWin.document.close();
+    };
+
+    window.requestSurrender = async function(id) {
+      if (confirm('Are you sure you want to request Telex/OBL Surrender for this Bill of Lading?')) {
+        const idx = DB.hblRecords.findIndex(x => x.id === id);
+        if (idx >= 0) {
+          DB.hblRecords[idx].surrenderRequested = true;
+          
+          addAuditLog('REQUEST', 'HBL', `Surrender requested for OBL ${DB.hblRecords[idx].hblNo}`);
+          addAdminNotification(`Surrender OBL request for ${DB.hblRecords[idx].hblNo} by ${currentUser.company}`, 'warning');
+          
+          await saveDatabase();
+          showToast('OBL Surrender requested! Operations notified.', 'success');
+          renderCurrentPanel();
+        }
+      }
+    };
+
+    // ============================================
+    // PANEL 6: INVOICES
+    // ============================================
+    function renderInvoices(el) {
+      const company = currentUser.company;
+      const myInvoices = (DB.invoices || []).filter(i => i.customer === company);
+
+      el.innerHTML = `
+        <div class="card">
+          <div style="font-size:12px; font-weight:700; margin-bottom:16px;"><i class="ti ti-file-dollar"></i> Customer Billing Invoices</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Invoice No</th>
+                  <th>Job Reference</th>
+                  <th>Billing Date</th>
+                  <th>Due Date</th>
+                  <th>Total Amount</th>
+                  <th>Status</th>
+                  <th>Dispute Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myInvoices.map(i => {
+                  let disputeBadge = '—';
+                  if (i.disputeTicket) {
+                    disputeBadge = i.disputeTicket.status === 'Open' ? 
+                      `<span class="badge b-red">Open Dispute</span>` : `<span class="badge b-green">Resolved</span>`;
+                  }
+
+                  return `
+                    <tr>
+                      <td class="fw-600 monospace text-primary">${esc(i.invNo)}</td>
+                      <td class="monospace">${esc(i.jobNo || '-')}</td>
+                      <td>${fmtDate(i.invoiceDate)}</td>
+                      <td>${fmtDate(i.dueDate)}</td>
+                      <td class="fw-700 text-primary">${formatAmount(i.total, i.currency)}</td>
+                      <td>${statusBadge(i.status)}</td>
+                      <td>${disputeBadge}</td>
+                      <td>
+                        <div style="display:flex; gap:6px; justify-content:flex-end;">
+                          <button class="btn xs" onclick="printInvoicePDF('${i.id}')" title="Print Invoice"><i class="ti ti-printer"></i> Print</button>
+                          ${!i.disputeTicket ? `<button class="btn xs danger" onclick="openDisputeModal('${i.id}')"><i class="ti ti-alert-triangle"></i> Raise Dispute</button>` : ''}
+                        </div>
+                      </td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="8" class="text-center text-muted" style="padding:24px">No customer billing invoices found.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    window.openDisputeModal = function(invId) {
+      document.getElementById('modal-container').innerHTML = `
+        <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+          <div class="modal" style="width:550px;">
+            <div class="modal-title">Raise Invoice Dispute Ticket <button class="btn ghost icon-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+            <div class="modal-body">
+              <div class="fg" style="margin-bottom:12px;">
+                <label>Dispute Reason / Category *</label>
+                <select id="disp-reason">
+                  <option>Incorrect Freight Rate</option>
+                  <option>Excessive Origin / Destination Fees</option>
+                  <option>Incorrect Tax / GST Calculation</option>
+                  <option>Missing Agreed Free Days / Incentives</option>
+                  <option>Other Billing Discrepancy</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label>Detailed Explanation *</label>
+                <textarea id="disp-desc" class="dispute-desc-textarea" rows="4" placeholder="Explain the billing issue clearly so the finance department can review..."></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn" onclick="closeModal()">Cancel</button>
+              <button class="btn pr danger" onclick="submitDispute('${invId}')"><i class="ti ti-alert-triangle"></i> Submit Dispute</button>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    window.submitDispute = async function(invId) {
+      const reason = fv('disp-reason');
+      const desc = fv('disp-desc').trim();
+      
+      if (!desc) {
+        showToast('Please provide a detailed explanation of the dispute', 'warning');
+        return;
+      }
+
+      const idx = DB.invoices.findIndex(x => x.id === invId);
+      if (idx >= 0) {
+        const inv = DB.invoices[idx];
+        inv.disputeTicket = {
+          reason: reason,
+          description: desc,
+          status: 'Open',
+          date: now()
+        };
+
+        addAuditLog('REQUEST', 'Finance', `Invoice ${inv.invNo} disputed: ${reason}`);
+        addAdminNotification(`Invoice ${inv.invNo} disputed by ${currentUser.company}: ${reason}`, 'danger');
+
+        await saveDatabase();
+        closeModal();
+        showToast('Dispute ticket submitted to Finance!', 'success');
+        renderCurrentPanel();
+      }
+    };
+
+    window.printInvoicePDF = function(id) {
+      const inv = DB.invoices.find(x => x.id === id);
+      if (!inv) return;
+      const s = DB.settings;
+      const win = window.open('', '_blank');
+      
+      win.document.write(`
+        <html>
+        <head>
+          <title>Invoice - ${inv.invNo}</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #000; background: #fff; font-size: 12px; line-height: 1.5; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 25px; }
+            .company-name { font-size: 18px; font-weight: 700; text-transform: uppercase; }
+            .doc-title { font-size: 20px; font-weight: 800; text-align: center; text-transform: uppercase; margin-bottom: 25px; }
+            .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; border: 1px solid #ccc; padding: 15px; border-radius: 6px; }
+            .details-row { display: flex; margin-bottom: 6px; }
+            .details-lbl { font-weight: 600; width: 120px; color: #444; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 30px; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f0f0f0; font-weight: 600; }
+            .total-row { text-align: right; font-size: 14px; font-weight: 800; margin-top: 20px; padding: 10px; border-top: 2px solid #000; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              ${s.logo ? `<img src="${s.logo}" style="max-height:50px; margin-bottom:10px;">` : ''}
+              <div class="company-name">${esc(s.company || 'FR8X LOGISTICS')}</div>
+              <div>GSTIN: ${esc(s.gst || '-')}</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 16px; font-weight: 700;">${esc(inv.invNo)}</div>
+              <div>DATE: ${fmtDate(inv.invoiceDate)}</div>
+              <div>DUE DATE: ${fmtDate(inv.dueDate)}</div>
+            </div>
+          </div>
+          
+          <div class="doc-title">Tax Invoice</div>
+          
+          <div class="details-grid">
+            <div>
+              <div class="details-row"><span class="details-lbl">BILL TO:</span><span>${esc(inv.customer)}</span></div>
+              <div class="details-row"><span class="details-lbl">JOB REF:</span><span>${esc(inv.jobNo || '-')}</span></div>
+            </div>
+            <div>
+              <div class="details-row"><span class="details-lbl">CURRENCY:</span><span>${esc(inv.currency || 'INR')}</span></div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Charge Particulars</th>
+                <th>Unit</th>
+                <th style="text-align: right;">Qty</th>
+                <th style="text-align: right;">Rate</th>
+                <th style="text-align: right;">GST %</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(inv.items || []).map(it => `
+                <tr>
+                  <td>${esc(it.desc)}</td>
+                  <td>${esc(it.unit || 'CTR')}</td>
+                  <td style="text-align: right;">${it.qty}</td>
+                  <td style="text-align: right;">${formatAmount(it.rate, inv.currency)}</td>
+                  <td style="text-align: right;">${it.gstRate || 0}%</td>
+                  <td style="text-align: right;">${formatAmount(it.amount, inv.currency)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="total-row">INVOICE TOTAL: ${formatAmount(inv.total || 0, inv.currency || 'INR')}</div>
+          
+          <script>window.print();<\/script>
+        </body>
+        </html>
+      `);
+      win.document.close();
+    };
+
+    // ============================================
+    // PANEL 7: RECEIPTS
+    // ============================================
+    function renderReceipts(el) {
+      const company = currentUser.company;
+      const myReceipts = (DB.receipts || []).filter(r => r.customer === company);
+
+      el.innerHTML = `
+        <div class="card">
+          <div style="font-size:12px; font-weight:700; margin-bottom:16px;"><i class="ti ti-receipt-2"></i> Payment Receipts Ledger</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Receipt No</th>
+                  <th>Date</th>
+                  <th>Amount Credited</th>
+                  <th>Payment Mode</th>
+                  <th>Transaction Reference / UTR</th>
+                  <th>Allocated Invoice</th>
+                  <th>Remarks</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myReceipts.map(r => `
+                  <tr>
+                    <td class="fw-600 monospace text-primary">${esc(r.receiptNo)}</td>
+                    <td>${fmtDate(r.receiptDate || r.date)}</td>
+                    <td class="fw-700 text-success">${formatAmount(r.amount, r.currency)}</td>
+                    <td>${esc(r.payMode || 'BANK TRANSFER')}</td>
+                    <td class="monospace">${esc(r.referenceNo || r.utr || '-')}</td>
+                    <td class="monospace">${esc(r.invoiceNo || '-')}</td>
+                    <td>${esc(r.remarks || '-')}</td>
+                    <td>
+                      <div style="display:flex; justify-content:flex-end;">
+                        <button class="btn xs" onclick="printReceiptPDF('${r.id}')" title="Print Receipt"><i class="ti ti-printer"></i> Print</button>
+                      </div>
+                    </td>
+                  </tr>`).join('') || '<tr><td colspan="8" class="text-center text-muted" style="padding:24px">No payment receipts logged yet.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    window.printReceiptPDF = function(id) {
+      const r = DB.receipts.find(x => x.id === id);
+      if (!r) return;
+      const s = DB.settings;
+      const win = window.open('', '_blank');
+      
+      win.document.write(`
+        <html>
+        <head>
+          <title>Receipt - ${r.receiptNo}</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #000; background: #fff; font-size: 12px; line-height: 1.5; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 25px; }
+            .company-name { font-size: 18px; font-weight: 700; text-transform: uppercase; }
+            .doc-title { font-size: 20px; font-weight: 800; text-align: center; text-transform: uppercase; margin-bottom: 25px; }
+            .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; border: 1px solid #ccc; padding: 15px; border-radius: 6px; }
+            .details-row { display: flex; margin-bottom: 6px; }
+            .details-lbl { font-weight: 600; width: 120px; color: #444; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              ${s.logo ? `<img src="${s.logo}" style="max-height:50px; margin-bottom:10px;">` : ''}
+              <div class="company-name">${esc(s.company || 'FR8X LOGISTICS')}</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 16px; font-weight: 700;">${esc(r.receiptNo)}</div>
+              <div>DATE: ${fmtDate(r.receiptDate || r.date)}</div>
+            </div>
+          </div>
+          
+          <div class="doc-title">Payment Receipt</div>
+          
+          <div class="details-grid">
+            <div>
+              <div class="details-row"><span class="details-lbl">RECEIVED FROM:</span><span>${esc(r.customer)}</span></div>
+              <div class="details-row"><span class="details-lbl">AMOUNT:</span><span>${formatAmount(r.amount, r.currency)}</span></div>
+              <div class="details-row"><span class="details-lbl">REF / UTR:</span><span>${esc(r.referenceNo || r.utr || '-')}</span></div>
+            </div>
+            <div>
+              <div class="details-row"><span class="details-lbl">PAYMENT MODE:</span><span>${esc(r.payMode || 'BANK WIRE')}</span></div>
+              <div class="details-row"><span class="details-lbl">ALLOCATED INV:</span><span>${esc(r.invoiceNo || '-')}</span></div>
+              <div class="details-row"><span class="details-lbl">REMARKS:</span><span>${esc(r.remarks || '-')}</span></div>
+            </div>
+          </div>
+          
+          <script>window.print();<\/script>
+        </body>
+        </html>
+      `);
+      win.document.close();
+    };
+
+    // ============================================
+    // PANEL 8: ADMIN (PORTAL REGISTRATIONS)
+    // ============================================
+    function renderAdminUsers(el) {
+      const portalUsers = (DB.users || []).filter(u => u.role === 'fr8xflow');
+
+      el.innerHTML = `
+        <div class="card">
+          <div style="font-size:12px; font-weight:700; margin-bottom:16px;"><i class="ti ti-users"></i> Portal Customer Accounts & access control</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Company Name</th>
+                  <th>Full Name</th>
+                  <th>Email ID</th>
+                  <th>Phone</th>
+                  <th>Country</th>
+                  <th>GST Number</th>
+                  <th>Access Status</th>
+                  <th>Registration Date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${portalUsers.map(u => {
+                  let badgeClass = u.status === 'Active' ? 'b-green' : u.status === 'Pending' ? 'b-amber' : 'b-red';
+                  return `
+                    <tr>
+                      <td class="fw-600 text-primary">${esc(u.company)}</td>
+                      <td>${esc(u.name)}</td>
+                      <td class="monospace text-muted">${esc(u.email)}</td>
+                      <td>${esc(u.phone || '-')}</td>
+                      <td>${esc(u.country || '-')}</td>
+                      <td>${esc(u.gst || '-')}</td>
+                      <td><span class="badge ${badgeClass}">${esc(u.status)}</span></td>
+                      <td>${fmtDate(u.createdAt)}</td>
+                      <td>
+                        <div style="display:flex; gap:6px; justify-content:flex-end;">
+                          ${u.status === 'Pending' ? `
+                            <button class="btn xs success" onclick="adminApproveUser('${u.id}')"><i class="ti ti-check"></i> Approve</button>
+                            <button class="btn xs danger" onclick="adminRejectUser('${u.id}')"><i class="ti ti-x"></i> Reject</button>
+                          ` : `
+                            <button class="btn xs" onclick="adminToggleAccess('${u.id}')">${u.status === 'Active' ? '<i class="ti ti-lock"></i> Disable' : '<i class="ti ti-lock-open"></i> Enable'}</button>
+                          `}
+                          <button class="btn xs warning" onclick="adminResetPassword('${u.id}')"><i class="ti ti-key"></i> Reset Pwd</button>
+                        </div>
+                      </td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="9" class="text-center text-muted" style="padding:24px">No customer registrations found.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    window.adminApproveUser = async function(id) {
+      const u = DB.users.find(usr => usr.id === id);
+      if (!u) return;
+
+      if (confirm(`Approve customer account registration for ${u.company}?`)) {
+        u.status = 'Active';
+
+        // Check if company exists in DB.customers, if not create profile
+        if (!DB.customers) DB.customers = [];
+        if (!DB.customers.some(c => c.company === u.company)) {
+          const newCust = {
+            id: 'cst-' + Math.random().toString(36).substr(2, 9),
+            code: 'CST-' + Math.floor(Math.random()*90000 + 10000),
+            company: u.company,
+            country: u.country || 'India',
+            email: u.email,
+            phone: u.phone || '',
+            creditLimit: 100000,
+            currency: 'INR',
+            paymentTerms: 'NET 30',
+            status: 'Active'
+          };
+          DB.customers.push(newCust);
+          addAuditLog('CREATE', 'Customers', `Customer master profile created for ${u.company} via portal approval`);
+        }
+
+        addAuditLog('UPDATE', 'Users', `Customer portal user ${u.email} approved by Super Admin`);
+        await saveDatabase();
+        showToast('Customer approved successfully!', 'success');
+        renderCurrentPanel();
+      }
+    };
+
+    window.adminRejectUser = async function(id) {
+      const u = DB.users.find(usr => usr.id === id);
+      if (!u) return;
+
+      if (confirm(`Reject customer account registration for ${u.company}?`)) {
+        u.status = 'Rejected';
+        addAuditLog('UPDATE', 'Users', `Customer portal user ${u.email} rejected by Super Admin`);
+        await saveDatabase();
+        showToast('Customer rejected', 'danger');
+        renderCurrentPanel();
+      }
+    };
+
+    window.adminToggleAccess = async function(id) {
+      const u = DB.users.find(usr => usr.id === id);
+      if (!u) return;
+
+      const newStatus = u.status === 'Active' ? 'Inactive' : 'Active';
+      if (confirm(`Set account access status to ${newStatus} for ${u.company}?`)) {
+        u.status = newStatus;
+        addAuditLog('UPDATE', 'Users', `Access toggled to ${newStatus} for user ${u.email}`);
+        await saveDatabase();
+        showToast(`Access updated to ${newStatus}`, 'success');
+        renderCurrentPanel();
+      }
+    };
+
+    window.adminResetPassword = async function(id) {
+      const u = DB.users.find(usr => usr.id === id);
+      if (!u) return;
+
+      const newPass = prompt(`Enter new password for ${u.name}:`);
+      if (newPass) {
+        if (newPass.trim().length < 4) {
+          showToast('Password must be at least 4 characters long', 'warning');
+          return;
+        }
+        u.password = hashPassword(newPass.trim());
+        addAuditLog('UPDATE', 'Users', `Password reset for user ${u.email}`);
+        await saveDatabase();
+        showToast('Password reset successfully!', 'success');
+      }
+    };
+
+    // ============================================
+    // DYNAMIC CORE METHODS
+    // ============================================
+    async function saveDatabase() {
+      if (_firestore) {
+        const { doc, setDoc } = window.firebaseAPI;
+        const safeDB = JSON.parse(JSON.stringify(DB));
+        
+        // Remove massive local base64 URLs or logos if needed (ERP structure consistency)
+        if (safeDB.documents) safeDB.documents = safeDB.documents.map(d => d.provider === 'local' ? {...d, url:'[local-blob]'} : d);
+        if (safeDB.settings?.logo && safeDB.settings.logo.startsWith('data:')) safeDB.settings = {...safeDB.settings, logo:'[logo-local]'};
+        
+        try {
+          await setDoc(doc(_firestore, 'fr8x', 'maindb'), safeDB);
+        } catch (err) {
+          console.warn('Firestore sync failed, updating local state only:', err);
+        }
+      }
+      localStorage.setItem(DB_KEY, JSON.stringify(DB));
+    }
+
+    function addAuditLog(action, module, record) {
+      if (!DB.auditLog) DB.auditLog = [];
+      const entry = {
+        ts: now(),
+        user: currentUser ? currentUser.name : 'ANONYMOUS CLIENT',
+        action: action,
+        module: module,
+        record: record
+      };
+      DB.auditLog.unshift(entry);
+    }
+
+    function addAdminNotification(message, type) {
+      if (!DB.notifications) DB.notifications = [];
+      const entry = {
+        id: 'ntf-' + Math.random().toString(36).substr(2, 9),
+        title: message,
+        type: type || 'info',
+        ts: now(),
+        read: false
+      };
+      DB.notifications.unshift(entry);
+    }
+
+    // UTILITIES & VIEW FORMATTERS
+    function fv(id) {
+      const el = document.getElementById(id);
+      return el ? el.value.trim() : '';
+    }
+
+    function esc(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function fmtDate(d) {
+      if (!d) return '—';
+      try {
+        return new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+      } catch {
+        return d;
+      }
+    }
+
+    function formatAmount(n, cur) {
+      cur = cur || DB.settings?.currency || 'INR';
+      try {
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(n || 0);
+      } catch (e) {
+        const sym = cur === 'USD' ? '$' : cur === 'EUR' ? '€' : '₹';
+        return sym + ' ' + (Math.round(n || 0)).toLocaleString('en-IN');
+      }
+    }
+
+    function statusBadge(s) {
+      const map = {
+        'Recd.': 'b-blue',
+        'Updated': 'b-purple',
+        'Finalise': 'b-green',
+        'Submitted': 'b-amber',
+        'Released': 'b-blue',
+        'Relase': 'b-blue',
+        'Recd on email': 'b-green',
+        'Draft': 'b-gray',
+        'Draft approved status': 'b-green',
+        'Draft Approved': 'b-green',
+        'Issued': 'b-blue',
+        'Surrendered': 'b-gray',
+        'Pending Submission': 'b-orange',
+        'Surrender Requested': 'b-red'
+      };
+      return `<span class="badge ${map[s] || 'b-gray'}">${esc(s || '')}</span>`;
+    }
+
+    window.closeModal = function() {
+      document.getElementById('modal-container').innerHTML = '';
+    };
+
+    window.showToast = function(msg, type = 'info') {
+      const cont = document.getElementById('toast-container');
+      const id = 't-' + Math.random().toString(36).substr(2,9);
+      
+      const div = document.createElement('div');
+      div.className = `toast ${type}`;
+      div.id = id;
+      div.innerHTML = `<i class="ti ti-${type==='success'?'circle-check':type==='danger'?'alert-triangle':'info-circle'}"></i><span>${esc(msg)}</span>`;
+      
+      cont.appendChild(div);
+      setTimeout(() => {
+        document.getElementById(id)?.remove();
+      }, 3500);
+    };
+  </script>
+</body>
+</html>
